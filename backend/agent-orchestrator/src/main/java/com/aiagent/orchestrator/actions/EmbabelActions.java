@@ -22,7 +22,7 @@ public class EmbabelActions {
         ToolRequest request = ToolRequest.builder()
             .toolName("filesystem.read")
             .toolType(ToolType.FILESYSTEM_READ)
-            .parameters(Map.of("filePath", filePath))
+            .parameters(Map.of("path", filePath))
             .build();
             
         return mcpWebClient.post()

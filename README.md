@@ -1,7 +1,5 @@
-# AI Agent Platform
-
-A Claude-Code-like autonomous coding agent platform built with Spring Boot, Spring AI, MCP (Model Context Protocol), and IntelliJ Plugin integration.
-
+# nebula-ai-platform
+An autonomous coding agent platform built with Spring Boot, Spring AI, embabel, MCP (Model Context Protocol), and IntelliJ Plugin integration.
 ## Architecture Overview
 
 The AI Agent Platform is designed as a modular, distributed system that supports autonomous code modifications, shell command execution, repository analysis, and streaming responses to IntelliJ IDEA.

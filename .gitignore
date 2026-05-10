@@ -37,3 +37,27 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# Build artifacts
+*.class
+*.log
+server.log
+
+# IDE files
+.idea/
+*.iml
+
+# Gradle
+.gradle/
+build/
+
+# Test files
+DebugPathValidation.class
+TestPathSimple.class
+UserService.java
+debug-path-validation.java
+test-path-simple.java
+test-filesystem-read.md
+
+# Postman collection (keep)
+!postman/
