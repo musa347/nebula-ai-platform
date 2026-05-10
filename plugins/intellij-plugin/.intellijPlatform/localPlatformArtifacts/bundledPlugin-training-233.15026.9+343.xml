@@ -1,0 +1,12 @@
+<ivy-module version="2.0">
+  <info organisation="bundledPlugin" module="training" revision="233.15026.9+343"/>
+  <configurations>
+    <conf name="default" visibility="public"/>
+  </configurations>
+  <publications>
+    <artifact name="/Users/imusa/.gradle/caches/transforms-3/74c2ffc2b136f2eb250e310a4cc3367f/transformed/ideaIC-2023.3.6/plugins/featuresTrainer" type="directory" conf="default"/>
+  </publications>
+  <dependencies>
+    <dependency org="bundledPlugin" name="Git4Idea" rev="233.15026.9+44"/>
+  </dependencies>
+</ivy-module>

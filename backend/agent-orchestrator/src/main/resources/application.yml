@@ -1,0 +1,119 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: agent-orchestrator
+  
+  webflux:
+    base-path: /api/v1
+  
+  codec:
+    max-in-memory-size: 10MB
+
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: gpt-4-turbo-preview
+          temperature: 0.1
+          max-tokens: 4000
+    
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: codellama
+          temperature: 0.1
+          max-tokens: 4000
+
+orchestrator:
+  mcp-server:
+    base-url: http://localhost:8081
+    timeout-ms: 30000
+    retry-attempts: 3
+  
+  planning:
+    max-steps: 20
+    context-window-size: 8000
+    max-tool-results-size: 2000
+  
+  memory:
+    enabled: true
+    max-conversation-turns: 50
+    context-compression-threshold: 6000
+  
+  retry:
+    max-attempts: 3
+    backoff-ms: 1000
+    max-backoff-ms: 10000
+  
+  streaming:
+    enabled: true
+    buffer-size: 1024
+    flush-interval-ms: 100
+
+prompt:
+  templates:
+    system: |
+      You are an expert software engineer and coding assistant.
+      
+      Your task is to help users with code modifications, analysis, and improvements.
+      Follow these principles:
+      1. Always use patch-based editing - never rewrite entire files
+      2. Minimize context - only include relevant code sections
+      3. Explain your reasoning before making changes
+      4. Validate changes before applying them
+      5. Use tools systematically and safely
+      
+      Available tools:
+      - filesystem.read: Read file contents
+      - filesystem.write: Write to files (use sparingly)
+      - filesystem.patch: Apply targeted patches (preferred)
+      - shell.execute: Run shell commands
+      - git.diff: Show git differences
+      - git.status: Show git status
+      - repo.find_symbol: Find code symbols
+      - repo.search_code: Search code patterns
+      
+      Always think step by step and explain your plan before executing.
+    
+    task-analysis: |
+      Analyze this task: {task}
+      
+      Consider:
+      1. What files need to be modified?
+      2. What tools are required?
+      3. What are the potential risks?
+      4. How can this be done safely?
+      
+      Provide a step-by-step plan.
+
+logging:
+  level:
+    com.aiagent.orchestrator: DEBUG
+    org.springframework.ai: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+resilience4j:
+  retry:
+    instances:
+      mcp-calls:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.io.IOException

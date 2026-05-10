@@ -1,0 +1,63 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: mcp-server
+  
+  webflux:
+    base-path: /api/v1
+  
+  codec:
+    max-in-memory-size: 10MB
+
+mcp:
+  security:
+    allowed-paths:
+      - "/workspace"
+      - "/tmp"
+      - "/Users"
+    blocked-commands:
+      - "rm -rf"
+      - "sudo"
+      - "chmod 777"
+      - "dd if="
+      - "mkfs"
+    sandbox-enabled: true
+    workspace-dir: "/tmp/mcp-sandbox"
+  
+  execution:
+    timeout-ms: 30000
+    max-concurrent: 10
+    max-file-size-bytes: 10485760  # 10MB
+    max-patch-size-chars: 100000
+  
+  tools:
+    filesystem:
+      enabled: true
+      allowed-extensions: [".java", ".kt", ".xml", ".yml", ".yaml", ".json", ".md", ".txt", ".properties"]
+    shell:
+      enabled: true
+      allowed-shells: ["/bin/bash", "/bin/sh", "/bin/zsh"]
+    git:
+      enabled: true
+      auto-detect: true
+    repo:
+      enabled: true
+      index-on-startup: false
+
+logging:
+  level:
+    com.aiagent.mcp: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

@@ -1,0 +1,75 @@
+<idea-plugin>
+    <id>com.mcp.ai-agent-platform</id>
+    <name>AI Agent Platform</name>
+    <vendor email="support@aiagent.com" url="https://aiagent.com">MCP</vendor>
+
+    <description><![CDATA[
+    AI Agent Platform plugin for IntelliJ IDEA.
+    
+    This plugin provides integration with the AI Agent Platform, allowing you to:
+    - Execute AI-powered code modifications
+    - View and apply patches in real-time
+    - Stream responses from the AI orchestrator
+    - Access repository intelligence features
+    - Run automated code analysis and refactoring
+    
+    Features:
+    - Real-time WebSocket communication with the AI backend
+    - Diff viewer for proposed changes
+    - Tool window for AI interactions
+    - Inline code actions
+    - Repository-wide semantic search
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Tool Window -->
+        <toolWindow id="AI Agent" secondary="true" icon="/icons/ai-agent.svg" anchor="right"
+                    factoryClass="com.aiagent.plugin.toolwindow.AiAgentToolWindowFactory"/>
+        
+        <!-- Project Settings -->
+        <projectConfigurable parentId="tools" instance="com.aiagent.plugin.settings.AiAgentSettingsConfigurable"
+                             id="com.aiagent.plugin.settings" displayName="AI Agent Platform"/>
+        
+        <!-- Application Settings -->
+        <applicationConfigurable instance="com.aiagent.plugin.settings.AiAgentApplicationSettingsConfigurable"
+                                id="com.aiagent.plugin.application.settings" displayName="AI Agent Platform"/>
+        
+        <!-- Actions -->
+        <action id="com.aiagent.plugin.actions.ExecuteAiTask"
+                class="com.aiagent.plugin.actions.ExecuteAiTaskAction"
+                text="Execute AI Task"
+                description="Execute a task using the AI Agent Platform">
+            <add-to-group group-id="ToolsMenu" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift A"/>
+        </action>
+        
+        <action id="com.aiagent.plugin.actions.ShowDiff"
+                class="com.aiagent.plugin.actions.ShowDiffAction"
+                text="Show AI Diff"
+                description="Show diff for AI-proposed changes">
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+        </action>
+        
+        <!-- Status Bar Widget -->
+        <statusBarWidgetFactory implementation="com.aiagent.plugin.status.AiAgentStatusBarWidgetFactory"/>
+    </extensions>
+
+    <actions>
+        <!-- Additional actions can be registered here -->
+    </actions>
+
+    <application-components>
+        <component>
+            <implementation-class>com.aiagent.plugin.AiAgentApplicationComponent</implementation-class>
+        </component>
+    </application-components>
+
+    <project-components>
+        <component>
+            <implementation-class>com.aiagent.plugin.AiAgentProjectComponent</implementation-class>
+        </component>
+    </project-components>
+</idea-plugin>
