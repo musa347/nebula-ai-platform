@@ -1,4 +1,4 @@
-# Bebula Ai Platform
+# Nebula Ai Platform
 
 A Claude-Code-like autonomous coding agent platform built with Spring Boot, Spring AI, MCP (Model Context Protocol), and IntelliJ Plugin integration.
 
