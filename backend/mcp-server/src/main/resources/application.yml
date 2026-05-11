@@ -26,6 +26,15 @@ mcp:
     sandbox-enabled: true
     workspace-dir: "/tmp/mcp-sandbox"
   
+  shell:
+    timeout-seconds: 120
+    allowed-commands:
+      - "mvn test"
+      - "mvn clean install"
+      - "gradle test"
+      - "npm test"
+      - "npm run build"
+  
   execution:
     timeout-ms: 30000
     max-concurrent: 10

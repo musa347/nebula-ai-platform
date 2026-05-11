@@ -39,7 +39,7 @@
         
         <!-- Spring Boot -->
         <spring-boot.version>3.2.5</spring-boot.version>
-        <spring-ai.version>0.8.1</spring-ai.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
         
         <!-- Utilities -->
         <jackson.version>2.17.0</jackson.version>
@@ -71,7 +71,7 @@
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
-                <version>${spring-ai.version}</version>
+                <version>1.0.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -106,11 +106,6 @@
         <artifactId>kotlin-test</artifactId>
         <version>${kotlin.version}</version>
         <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-stdlib-jdk8</artifactId>
-        <version>${kotlin.version}</version>
     </dependency>
 </dependencies>
 

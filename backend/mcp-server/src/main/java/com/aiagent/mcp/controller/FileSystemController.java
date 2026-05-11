@@ -28,27 +28,8 @@ public class FileSystemController {
     @PostMapping("/execute")
     public ResponseEntity<ToolResponse> execute(@RequestBody ToolRequest request) {
         try {
-            if (request.getToolType() == ToolType.FILESYSTEM_READ) {
-                ToolResponse response = fileSystemToolService.executeFileSystemRead(request);
-                return ResponseEntity.ok(response);
-            } else {
-                return ResponseEntity.badRequest().body(
-                    new ToolResponse(
-                        request.getId(),
-                        request.getToolName(),
-                        request.getToolType(),
-                        com.aiagent.common.enums.ExecutionStatus.FAILED,
-                        null,
-                        "Unsupported tool type: " + request.getToolType(),
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null
-                    )
-                );
-            }
+            ToolResponse response = fileSystemToolService.execute(request);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(
                     new ToolResponse(

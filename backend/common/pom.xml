@@ -23,14 +23,12 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
-        <!-- Lombok for reducing boilerplate (temporarily disabled for Java 21 compatibility) -->
-        <!--
+        <!-- Lombok for reducing boilerplate -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        -->
 
         <!-- Validation -->
         <dependency>
