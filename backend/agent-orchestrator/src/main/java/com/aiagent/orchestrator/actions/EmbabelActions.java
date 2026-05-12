@@ -1,5 +1,7 @@
 package com.aiagent.orchestrator.actions;
 
+import com.aiagent.common.dto.ShellExecuteRequest;
+import com.aiagent.common.dto.ShellExecuteResponse;
 import com.aiagent.common.dto.ToolRequest;
 import com.aiagent.common.dto.ToolResponse;
 import com.aiagent.common.enums.ToolType;
@@ -18,7 +20,6 @@ public class EmbabelActions {
     }
 
     public String readFile(String filePath) {
-        // Spring AI generates the plan, Embabel executes with type safety
         ToolRequest request = ToolRequest.builder()
             .toolName("filesystem.read")
             .toolType(ToolType.FILESYSTEM_READ)
@@ -32,31 +33,36 @@ public class EmbabelActions {
             .bodyToMono(String.class)
             .block();
     }
-    
-    /**
-     * Execute shell command with safety checks
-     */
+
     public String executeShell(String command) {
-        // Spring AI determines command, Embabel provides type-safe execution
-        ToolRequest request = ToolRequest.builder()
-            .toolName("shell.execute")
-            .toolType(ToolType.SHELL_EXECUTE)
-            .parameters(Map.of("command", command))
-            .build();
+        ShellExecuteRequest request = new ShellExecuteRequest();
+        request.setCommand(command);
+        request.setWorkingDirectory("/tmp");
             
-        return mcpWebClient.post()
-            .uri("/api/tools/execute")
+        ShellExecuteResponse response = mcpWebClient.post()
+            .uri("/api/tools/shell/execute")
             .bodyValue(request)
             .retrieve()
-            .bodyToMono(String.class)
+            .bodyToMono(ShellExecuteResponse.class)
             .block();
+            
+        if (response != null && response.isSuccess()) {
+            return "SUCCESS";
+        } else {
+            String output = "";
+            if (response != null) {
+                if (response.getStderr() != null && !response.getStderr().isEmpty()) {
+                    output += response.getStderr();
+                }
+                if (response.getStdout() != null && !response.getStdout().isEmpty()) {
+                    output += response.getStdout();
+                }
+            }
+            return output.isEmpty() ? "Command failed with exit code " + (response != null ? response.getExitCode() : "unknown") : output;
+        }
     }
-    
-    /**
-     * Apply code patch with validation
-     */
+
     public boolean applyPatch(String patch) {
-        // Spring AI generates patch, Embabel ensures type-safe application
         ToolRequest request = ToolRequest.builder()
             .toolName("patch.apply")
             .toolType(ToolType.PATCH_APPLY)

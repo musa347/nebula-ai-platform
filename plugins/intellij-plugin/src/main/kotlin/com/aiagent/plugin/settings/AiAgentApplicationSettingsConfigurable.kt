@@ -7,6 +7,7 @@ import com.intellij.openapi.util.NlsContexts
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import com.aiagent.plugin.AiAgentApplicationComponent
 import javax.swing.JComponent
 
 /**
@@ -24,28 +25,28 @@ class AiAgentApplicationSettingsConfigurable : Configurable {
     }
     
     override fun isModified(): Boolean {
-        val settings = AiAgentApplicationComponent.getInstance()
-        return settingsComponent!!.serverUrl != settings.state.serverUrl ||
-               settingsComponent!!.orchestratorUrl != settings.state.orchestratorUrl ||
-               settingsComponent!!.enableAutoConnect != settings.state.enableAutoConnect ||
-               settingsComponent!!.logLevel != settings.state.logLevel
+        val state = AiAgentApplicationComponent.getInstance().state
+        return settingsComponent!!.serverUrl.text != state.serverUrl ||
+               settingsComponent!!.orchestratorUrl.text != state.orchestratorUrl ||
+               settingsComponent!!.enableAutoConnect.isSelected != state.enableAutoConnect ||
+               settingsComponent!!.logLevel.text != state.logLevel
     }
     
     @Throws(ConfigurationException::class)
     override fun apply() {
-        val settings = AiAgentApplicationComponent.getInstance()
-        settings.state.serverUrl = settingsComponent!!.serverUrl
-        settings.state.orchestratorUrl = settingsComponent!!.orchestratorUrl
-        settings.state.enableAutoConnect = settingsComponent!!.enableAutoConnect
-        settings.state.logLevel = settingsComponent!!.logLevel
+        val state = AiAgentApplicationComponent.getInstance().state
+        state.serverUrl = settingsComponent!!.serverUrl.text
+        state.orchestratorUrl = settingsComponent!!.orchestratorUrl.text
+        state.enableAutoConnect = settingsComponent!!.enableAutoConnect.isSelected
+        state.logLevel = settingsComponent!!.logLevel.text
     }
     
     override fun reset() {
-        val settings = AiAgentApplicationComponent.getInstance()
-        settingsComponent!!.serverUrl = settings.state.serverUrl
-        settingsComponent!!.orchestratorUrl = settings.state.orchestratorUrl
-        settingsComponent!!.enableAutoConnect = settings.state.enableAutoConnect
-        settingsComponent!!.logLevel = settings.state.logLevel
+        val state = AiAgentApplicationComponent.getInstance().state
+        settingsComponent!!.serverUrl.text = state.serverUrl
+        settingsComponent!!.orchestratorUrl.text = state.orchestratorUrl
+        settingsComponent!!.enableAutoConnect.isSelected = state.enableAutoConnect
+        settingsComponent!!.logLevel.text = state.logLevel
     }
     
     override fun disposeUIResources() {

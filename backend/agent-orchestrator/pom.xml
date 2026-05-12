@@ -87,28 +87,6 @@
             <version>2.3</version>
         </dependency>
 
-        <!-- Embabel for strongly-typed AI agent actions -->
-        <dependency>
-            <groupId>com.embabel.agent</groupId>
-            <artifactId>embabel-agent-starter</artifactId>
-            <version>0.3.0</version>
-        </dependency>
-        
-        <!-- Embabel OpenAI provider -->
-        <dependency>
-            <groupId>com.embabel.agent</groupId>
-            <artifactId>embabel-agent-starter-openai</artifactId>
-            <version>0.3.0</version>
-        </dependency>
-        
-        <!-- Embabel test framework -->
-        <dependency>
-            <groupId>com.embabel.agent</groupId>
-            <artifactId>embabel-agent-test</artifactId>
-            <version>0.3.0</version>
-            <scope>test</scope>
-        </dependency>
-
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

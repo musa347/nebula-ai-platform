@@ -22,15 +22,7 @@ class AiAgentStatusBarWidgetFactory : StatusBarWidgetFactory {
         return AiAgentStatusBarWidget(project)
     }
     
-    override fun disposeWidget(widget: StatusBarWidget) {
-        // Cleanup if needed
-    }
-    
-    override fun canBeHostedBy(component: StatusBar): Boolean = true
+    override fun disposeWidget(widget: StatusBarWidget) {}
     
     override fun isConfigurable(): Boolean = false
-    
-    override fun getPresentationData(): Key<String>? = null
-    
-    override fun getWidgetStateFile(): String? = null
 }
