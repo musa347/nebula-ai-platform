@@ -21,14 +21,8 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
-    - name: Build Common Module
-      run: mvn -B clean install -pl backend/common -DskipTests
-    
-    - name: Build MCP Server
-      run: mvn -B clean install -pl backend/mcp-server -DskipTests
-    
-    - name: Build Agent Orchestrator
-      run: mvn -B clean install -pl backend/agent-orchestrator -DskipTests
+    - name: Build All Modules
+      run: mvn -B clean install -DskipTests
     
     - name: Run Tests
       run: mvn -B test -pl backend/common,backend/mcp-server,backend/agent-orchestrator
