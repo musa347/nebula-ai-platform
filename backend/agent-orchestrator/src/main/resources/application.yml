@@ -5,6 +5,9 @@ spring:
   application:
     name: agent-orchestrator
   
+  main:
+    allow-bean-definition-overriding: true
+  
   webflux:
     base-path: /api/v1
   

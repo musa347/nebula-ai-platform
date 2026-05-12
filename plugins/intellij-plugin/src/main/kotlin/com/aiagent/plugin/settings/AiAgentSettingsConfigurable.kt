@@ -24,22 +24,22 @@ class AiAgentSettingsConfigurable : Configurable {
     }
     
     override fun isModified(): Boolean {
-        val settings = AiAgentSettings.getInstance()
-        return settingsComponent!!.enableProjectIndexing != settings.enableProjectIndexing ||
-               settingsComponent!!.allowedPaths != settings.allowedPaths.joinToString("\n")
+        val state = AiAgentSettings.getInstance().state
+        return settingsComponent!!.enableProjectIndexing.isSelected != state.enableProjectIndexing ||
+               settingsComponent!!.allowedPaths.text != state.allowedPaths.joinToString("\n")
     }
     
     @Throws(ConfigurationException::class)
     override fun apply() {
-        val settings = AiAgentSettings.getInstance()
-        settings.enableProjectIndexing = settingsComponent!!.enableProjectIndexing
-        settings.allowedPaths = settingsComponent!!.allowedPaths.split("\n").filter { it.isNotBlank() }.toMutableList()
+        val state = AiAgentSettings.getInstance().state
+        state.enableProjectIndexing = settingsComponent!!.enableProjectIndexing.isSelected
+        state.allowedPaths = settingsComponent!!.allowedPaths.text.split("\n").filter { it.isNotBlank() }.toMutableList()
     }
     
     override fun reset() {
-        val settings = AiAgentSettings.getInstance()
-        settingsComponent!!.enableProjectIndexing = settings.enableProjectIndexing
-        settingsComponent!!.allowedPaths = settings.allowedPaths.joinToString("\n")
+        val state = AiAgentSettings.getInstance().state
+        settingsComponent!!.enableProjectIndexing.isSelected = state.enableProjectIndexing
+        settingsComponent!!.allowedPaths.text = state.allowedPaths.joinToString("\n")
     }
     
     override fun disposeUIResources() {

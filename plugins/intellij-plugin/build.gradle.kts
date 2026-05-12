@@ -28,6 +28,8 @@ dependencies {
     intellijPlatform {
         intellijIdeaCommunity("2023.3.6")
         bundledPlugin("com.intellij.java")
+        instrumentationTools()
+        pluginVerifier()
     }
 }
 
