@@ -11,6 +11,7 @@ public enum ToolType {
     SHELL_EXECUTE("shell.execute"),
     SHELL_BACKGROUND("shell.background"),
     GIT_DIFF("git.diff"),
+    GIT_RESTORE("git.restore"),
     GIT_STATUS("git.status"),
     GIT_COMMIT("git.commit"),
     GIT_CHECKOUT("git.checkout"),
