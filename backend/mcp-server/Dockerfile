@@ -1,4 +1,4 @@
-FROM openjdk:21-jdk-slim
+FROM eclipse-temurin:21-jdk-alpine
 
 LABEL maintainer="AI Agent Platform Team"
 LABEL description="MCP Server - Tool execution runtime for AI Agent Platform"
