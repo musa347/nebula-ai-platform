@@ -1,41 +1,45 @@
-FROM eclipse-temurin:21-jdk-alpine
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
 LABEL maintainer="AI Agent Platform Team"
 LABEL description="Agent Orchestrator - AI reasoning engine for AI Agent Platform"
 
-# Create app directory
-WORKDIR /app
+WORKDIR /build
 
-# Copy Maven wrapper and pom files
-COPY mvnw .
-COPY .mvn .mvn
+# Install Maven
+RUN apk add --no-cache maven
+
+# Copy pom files
 COPY pom.xml .
 COPY backend/pom.xml ./backend/
 COPY backend/common/pom.xml ./backend/common/
 COPY backend/agent-orchestrator/pom.xml ./backend/agent-orchestrator/
 
 # Download dependencies
-RUN ./mvnw dependency:go-offline -DskipTests
+RUN mvn dependency:go-offline -DskipTests
 
 # Copy source code
 COPY backend/common/src ./backend/common/src
 COPY backend/agent-orchestrator/src ./backend/agent-orchestrator/src
 
 # Build the application
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
 
-# Create runtime directories
-RUN useradd -m -u 1000 orchestratoruser && chown -R orchestratoruser:orchestratoruser /app
+# Runtime stage
+FROM eclipse-temurin:21-jre-alpine
 
-# Switch to non-root user
+WORKDIR /app
+
+# Copy JAR from builder
+COPY --from=builder /build/backend/agent-orchestrator/target/agent-orchestrator-*.jar app.jar
+
+# Create non-root user
+RUN adduser -D -u 1000 orchestratoruser && chown -R orchestratoruser:orchestratoruser /app
+
 USER orchestratoruser
 
-# Expose port
 EXPOSE 8082
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8082/api/v1/actuator/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1
 
-# Run the application
-CMD ["java", "-jar", "backend/agent-orchestrator/target/agent-orchestrator-1.0-SNAPSHOT.jar"]
+CMD ["java", "-jar", "app.jar"]
