@@ -1,8 +1,6 @@
 name: Security Scan
 
 on:
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sunday
   push:
     branches: [ master, main ]
   pull_request:
@@ -10,45 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  dependency-check:
-    name: Dependency Security Check
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-        cache: maven
-    
-    - name: Run OWASP Dependency Check
-      env:
-        NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-      run: |
-        if [ -z "$NVD_API_KEY" ]; then
-          echo "⚠️  NVD_API_KEY not set - skipping dependency check"
-          echo "To enable: Add NVD_API_KEY secret at https://github.com/${{ github.repository }}/settings/secrets/actions"
-          echo "Get API key from: https://nvd.nist.gov/developers/request-an-api-key"
-          exit 0
-        fi
-        mvn -B org.owasp:dependency-check-maven:check \
-          -DnvdApiKey=$NVD_API_KEY \
-          -DfailBuildOnCVSS=7 \
-          -DsuppressionFiles=dependency-check-suppressions.xml || true
-    
-    - name: Upload Dependency Check Report
-      if: always() && env.NVD_API_KEY != ''
-      uses: actions/upload-artifact@v4
-      with:
-        name: dependency-check-report
-        path: '**/target/dependency-check-report.html'
-
   trivy-scan:
-    name: Trivy Container Scan
+    name: Trivy Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     
     steps:
     - uses: actions/checkout@v4
@@ -66,3 +31,17 @@ jobs:
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
+    
+    - name: Run Trivy for HTML report
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+    
+    - name: Upload Trivy HTML Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-security-report
+        path: 'trivy-results.sarif'
