@@ -13,6 +13,7 @@ COPY pom.xml .
 COPY backend/pom.xml ./backend/
 COPY backend/common/pom.xml ./backend/common/
 COPY backend/mcp-server/pom.xml ./backend/mcp-server/
+COPY backend/agent-orchestrator/pom.xml ./backend/agent-orchestrator/
 
 # Download dependencies
 RUN mvn dependency:go-offline -DskipTests
@@ -22,7 +23,7 @@ COPY backend/common/src ./backend/common/src
 COPY backend/mcp-server/src ./backend/mcp-server/src
 
 # Build the application
-RUN mvn clean package -DskipTests
+RUN mvn clean package -pl backend/mcp-server -am -DskipTests
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine

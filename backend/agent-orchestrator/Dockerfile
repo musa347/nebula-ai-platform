@@ -12,6 +12,7 @@ RUN apk add --no-cache maven
 COPY pom.xml .
 COPY backend/pom.xml ./backend/
 COPY backend/common/pom.xml ./backend/common/
+COPY backend/mcp-server/pom.xml ./backend/mcp-server/
 COPY backend/agent-orchestrator/pom.xml ./backend/agent-orchestrator/
 
 # Download dependencies
@@ -22,7 +23,7 @@ COPY backend/common/src ./backend/common/src
 COPY backend/agent-orchestrator/src ./backend/agent-orchestrator/src
 
 # Build the application
-RUN mvn clean package -DskipTests
+RUN mvn clean package -pl backend/agent-orchestrator -am -DskipTests
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
