@@ -1,0 +1,44 @@
+package com.aiagent.mcp.tools.repo.controller;
+
+import com.aiagent.common.dto.RepoGrepRequest;
+import com.aiagent.common.dto.RepoGrepResponse;
+import com.aiagent.common.dto.RepoSearchRequest;
+import com.aiagent.common.dto.RepoSearchResponse;
+import com.aiagent.mcp.tools.repo.service.RepoGrepService;
+import com.aiagent.mcp.tools.repo.service.RepoSearchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/repo")
+public class RepoController {
+
+    private static final Logger log = LoggerFactory.getLogger(RepoController.class);
+    private final RepoSearchService repoSearchService;
+    private final RepoGrepService repoGrepService;
+
+    @Value("${mcp.workspace.path:./}")
+    private String workspacePath;
+
+    public RepoController(RepoSearchService repoSearchService, RepoGrepService repoGrepService) {
+        this.repoSearchService = repoSearchService;
+        this.repoGrepService = repoGrepService;
+    }
+
+    @PostMapping("/search")
+    public ResponseEntity<RepoSearchResponse> search(@RequestBody RepoSearchRequest request) {
+        log.info("Searching repository for: {}", request.getQuery());
+        RepoSearchResponse response = repoSearchService.search(request, workspacePath);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/grep")
+    public ResponseEntity<RepoGrepResponse> grep(@RequestBody RepoGrepRequest request) {
+        log.info("Grepping repository for: {}", request.getQuery());
+        RepoGrepResponse response = repoGrepService.grep(request, workspacePath);
+        return ResponseEntity.ok(response);
+    }
+}
