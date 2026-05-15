@@ -6,6 +6,7 @@ import com.aiagent.plugin.diff.PatchEventParser
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
@@ -21,6 +22,7 @@ class AiAgentPanel(private val project: Project) : SimpleToolWindowPanel(false, 
     private val responseArea = JBTextArea()
     private val executeButton = JButton("Execute Task")
     private val statusLabel = JBLabel("Ready")
+    private val relatedFilesPanel = RelatedFilesPanel()
 
     init {
         setupUI()
@@ -39,13 +41,18 @@ class AiAgentPanel(private val project: Project) : SimpleToolWindowPanel(false, 
 
         val statusPanel = JPanel(FlowLayout(FlowLayout.LEFT)).apply { add(statusLabel) }
 
-        val mainPanel = JPanel(BorderLayout()).apply {
+        val executionPanel = JPanel(BorderLayout()).apply {
             add(inputPanel, BorderLayout.NORTH)
             add(JScrollPane(responseArea), BorderLayout.CENTER)
             add(statusPanel, BorderLayout.SOUTH)
         }
 
-        setContent(mainPanel)
+        val tabbedPane = JBTabbedPane().apply {
+            addTab("Execution", executionPanel)
+            addTab("Related Files", relatedFilesPanel)
+        }
+
+        setContent(tabbedPane)
         toolbar = createToolbar()
     }
 
@@ -68,6 +75,7 @@ class AiAgentPanel(private val project: Project) : SimpleToolWindowPanel(false, 
             addActionListener {
                 responseArea.text = ""
                 taskInput.text = ""
+                relatedFilesPanel.clear()
                 statusLabel.text = "Ready"
             }
         }
