@@ -1,11 +1,9 @@
 package com.aiagent.mcp.tools.repo.controller;
 
-import com.aiagent.common.dto.RepoGrepRequest;
-import com.aiagent.common.dto.RepoGrepResponse;
-import com.aiagent.common.dto.RepoSearchRequest;
-import com.aiagent.common.dto.RepoSearchResponse;
+import com.aiagent.common.dto.*;
 import com.aiagent.mcp.tools.repo.service.RepoGrepService;
 import com.aiagent.mcp.tools.repo.service.RepoSearchService;
+import com.aiagent.mcp.tools.repo.service.SymbolSearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,13 +17,15 @@ public class RepoController {
     private static final Logger log = LoggerFactory.getLogger(RepoController.class);
     private final RepoSearchService repoSearchService;
     private final RepoGrepService repoGrepService;
+    private final SymbolSearchService symbolSearchService;
 
     @Value("${mcp.workspace.path:./}")
     private String workspacePath;
 
-    public RepoController(RepoSearchService repoSearchService, RepoGrepService repoGrepService) {
+    public RepoController(RepoSearchService repoSearchService, RepoGrepService repoGrepService, SymbolSearchService symbolSearchService) {
         this.repoSearchService = repoSearchService;
         this.repoGrepService = repoGrepService;
+        this.symbolSearchService = symbolSearchService;
     }
 
     @PostMapping("/search")
@@ -39,6 +39,13 @@ public class RepoController {
     public ResponseEntity<RepoGrepResponse> grep(@RequestBody RepoGrepRequest request) {
         log.info("Grepping repository for: {}", request.getQuery());
         RepoGrepResponse response = repoGrepService.grep(request, workspacePath);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/symbol/search")
+    public ResponseEntity<SymbolSearchResponse> symbolSearch(@RequestBody SymbolSearchRequest request) {
+        log.info("Searching symbols for: {}", request.getQuery());
+        SymbolSearchResponse response = symbolSearchService.search(request, workspacePath);
         return ResponseEntity.ok(response);
     }
 }
