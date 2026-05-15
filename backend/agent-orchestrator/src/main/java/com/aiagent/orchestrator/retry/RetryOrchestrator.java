@@ -5,6 +5,7 @@ import com.aiagent.common.dto.ExecutionEventType;
 import com.aiagent.common.enums.AgentState;
 import com.aiagent.common.enums.FailureType;
 import com.aiagent.orchestrator.actions.EmbabelActions;
+import com.aiagent.orchestrator.service.ExecutionGraphService;
 import com.aiagent.orchestrator.trace.ExecutionTrace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,16 +23,20 @@ public class RetryOrchestrator {
 
     private final EmbabelActions actions;
     private final FailureClassifier classifier;
+    private final ExecutionGraphService executionGraphService;
 
-    public RetryOrchestrator(EmbabelActions actions, FailureClassifier classifier) {
+    public RetryOrchestrator(EmbabelActions actions, FailureClassifier classifier, ExecutionGraphService executionGraphService) {
         this.actions = actions;
         this.classifier = classifier;
+        this.executionGraphService = executionGraphService;
     }
 
     public Flux<ExecutionEvent> executeWithRetry(String command, RetryPolicy policy) {
         String executionId = UUID.randomUUID().toString();
         Sinks.Many<ExecutionEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
         ExecutionTrace trace = new ExecutionTrace(executionId);
+        
+        executionGraphService.create(executionId);
 
         Thread.ofVirtual().start(() -> {
             try {
@@ -62,6 +67,7 @@ public class RetryOrchestrator {
             if (attempt > 0) {
                 transitionState(trace, sink, executionId, state, AgentState.RETRYING);
                 state = AgentState.RETRYING;
+                executionGraphService.addNode(executionId, "RETRY", "Retry attempt " + attempt);
                 emit(sink, executionId, ExecutionEventType.RETRY_STARTED,
                         "Retry attempt " + attempt + " of " + policy.getMaxRetries());
                 sleep(policy.backoffDelayMs(attempt - 1));
@@ -92,6 +98,7 @@ public class RetryOrchestrator {
 
             if (!failureType.isRetryable()) {
                 transitionState(trace, sink, executionId, state, AgentState.FAILED);
+                executionGraphService.addNode(executionId, "FAILURE", "Non-retryable: " + failureType);
                 emit(sink, executionId, ExecutionEventType.PROCESS_FAILED,
                         "Non-retryable failure: " + failureType);
                 return;

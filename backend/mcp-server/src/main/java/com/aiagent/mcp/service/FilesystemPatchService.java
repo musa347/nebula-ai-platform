@@ -5,11 +5,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.apache.commons.io.FileUtils;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,11 +34,20 @@ public class FilesystemPatchService {
     @Value("${mcp.max-file-size:1048576}") // 1MB default
     private long maxFileSize;
     
+    @Value("${orchestrator.url:http://localhost:8082}")
+    private String orchestratorUrl;
+    
+    private final RestTemplate restTemplate = new RestTemplate();
+    
     private static final Pattern UNIFIED_DIFF_PATTERN = Pattern.compile(
         "@@ -(\\d+)(?:,(\\d+))? \\+(\\d+)(?:,(\\d+))? @@"
     );
 
     public PatchResponse applyPatch(String filePath, String patchContent) throws IOException {
+        return applyPatch(filePath, patchContent, null);
+    }
+
+    public PatchResponse applyPatch(String filePath, String patchContent, String executionId) throws IOException {
         Path normalizedPath = normalizeAndValidatePath(filePath);
 
         String backupPath = createBackup(normalizedPath);
@@ -49,6 +63,10 @@ public class FilesystemPatchService {
             String diff = generateUnifiedDiff(originalLines, patchedLines, filePath);
 
             writeAtomically(normalizedPath, String.join("\n", patchedLines));
+            
+            if (executionId != null) {
+                notifyGraphService(executionId, "PATCH", "Applied patch to " + filePath);
+            }
             
             return PatchResponse.success(diff, true, backupPath);
             
@@ -209,5 +227,21 @@ public class FilesystemPatchService {
         return pathString.contains("../") || 
                pathString.contains("..\\") ||
                pathString.contains("..") && pathString.indexOf("..") != pathString.lastIndexOf("..");
+    }
+    
+    private void notifyGraphService(String executionId, String type, String message) {
+        try {
+            String url = orchestratorUrl + "/api/v1/orchestrator/graph/node";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            Map<String, String> body = Map.of(
+                "executionId", executionId,
+                "type", type,
+                "message", message
+            );
+            restTemplate.postForEntity(url, new HttpEntity<>(body, headers), Void.class);
+        } catch (Exception e) {
+            // Silent fail - graph tracking is optional
+        }
     }
 }
