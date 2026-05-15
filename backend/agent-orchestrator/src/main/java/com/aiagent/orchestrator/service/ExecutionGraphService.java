@@ -34,4 +34,8 @@ public class ExecutionGraphService {
     public ExecutionGraph get(String executionId) {
         return store.get(executionId);
     }
+
+    public Map<String, ExecutionGraph> getAll() {
+        return store;
+    }
 }
