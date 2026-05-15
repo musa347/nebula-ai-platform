@@ -4,7 +4,12 @@ import com.aiagent.common.dto.*;
 import com.aiagent.common.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,6 +28,11 @@ public class ContextMinimizationService {
     private final SymbolSearchService symbolSearchService;
     private final DependencyMapService dependencyMapService;
     private final JavaParserService javaParserService;
+    
+    @Value("${orchestrator.url:http://localhost:8082}")
+    private String orchestratorUrl;
+    
+    private final RestTemplate restTemplate = new RestTemplate();
 
     public ContextMinimizationService(RepoSearchService repoSearchService,
                                      RepoGrepService repoGrepService,
@@ -38,6 +48,7 @@ public class ContextMinimizationService {
 
     public ContextResponse buildContext(ContextRequest request, String workspacePath) {
         String task = request.getTask();
+        String executionId = request.getExecutionId();
         List<ContextSlice> slices = new ArrayList<>();
         Set<String> includedFiles = new HashSet<>();
 
@@ -98,6 +109,11 @@ public class ContextMinimizationService {
         }
 
         log.info("Built context with {} slices for task: {}", slices.size(), task);
+        
+        if (executionId != null) {
+            notifyGraphService(executionId, "CONTEXT", slices.size() + " files loaded");
+        }
+        
         return new ContextResponse(slices);
     }
 
@@ -150,5 +166,21 @@ public class ContextMinimizationService {
             .filter(word -> word.length() > 2)
             .filter(word -> !stopWords.contains(word))
             .collect(Collectors.toList());
+    }
+    
+    private void notifyGraphService(String executionId, String type, String message) {
+        try {
+            String url = orchestratorUrl + "/api/v1/orchestrator/graph/node";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            Map<String, String> body = Map.of(
+                "executionId", executionId,
+                "type", type,
+                "message", message
+            );
+            restTemplate.postForEntity(url, new HttpEntity<>(body, headers), Void.class);
+        } catch (Exception e) {
+            // Silent fail - graph tracking is optional
+        }
     }
 }
