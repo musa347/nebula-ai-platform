@@ -19,6 +19,7 @@ class MinimalOrchestratorServiceTest {
     private MinimalOrchestratorService minimalOrchestratorService;
     private ExecutionSessionService executionSessionService;
     private StateTransitionService stateTransitionService;
+    private PlanningService planningService;
     private ToolRouterService toolRouterService;
     private ToolExecutionService toolExecutionService;
     private ExecutionStatsService executionStatsService;
@@ -34,6 +35,7 @@ class MinimalOrchestratorServiceTest {
         stateTransitionService = new StateTransitionService();
         executionSessionService = new ExecutionSessionService();
         executionStatsService = new ExecutionStatsService();
+        planningService = new PlanningService();
         contextLoaderService = new ContextLoaderService();
         fileReaderService = new FileReaderService();
         patchProposalService = new PatchProposalService();
@@ -53,6 +55,10 @@ class MinimalOrchestratorServiceTest {
             java.lang.reflect.Field orchestratorSessionField = MinimalOrchestratorService.class.getDeclaredField("executionSessionService");
             orchestratorSessionField.setAccessible(true);
             orchestratorSessionField.set(minimalOrchestratorService, executionSessionService);
+            
+            java.lang.reflect.Field orchestratorPlanningField = MinimalOrchestratorService.class.getDeclaredField("planningService");
+            orchestratorPlanningField.setAccessible(true);
+            orchestratorPlanningField.set(minimalOrchestratorService, planningService);
             
             java.lang.reflect.Field orchestratorRouterField = MinimalOrchestratorService.class.getDeclaredField("toolRouterService");
             orchestratorRouterField.setAccessible(true);
