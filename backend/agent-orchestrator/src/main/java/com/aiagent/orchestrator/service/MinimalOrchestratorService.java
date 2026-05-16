@@ -4,6 +4,7 @@ import com.aiagent.common.dto.OrchestratorTaskRequest;
 import com.aiagent.common.dto.OrchestratorTaskResponse;
 import com.aiagent.common.enums.ExecutionState;
 import com.aiagent.common.model.ExecutionSession;
+import com.aiagent.common.model.ExecutionPlan;
 import com.aiagent.common.model.LoadedContext;
 import com.aiagent.common.model.FilePreview;
 import com.aiagent.common.model.PatchProposal;
@@ -27,6 +28,9 @@ public class MinimalOrchestratorService {
     private ExecutionSessionService executionSessionService;
     
     @Autowired
+    private PlanningService planningService;
+    
+    @Autowired
     private ToolRouterService toolRouterService;
     
     @Autowired
@@ -42,6 +46,10 @@ public class MinimalOrchestratorService {
         // Step 1: Create session (CREATED state)
         ExecutionSession session = executionSessionService.create();
         completedStates.add(ExecutionState.CREATED);
+        
+        // Step 2: Create execution plan (PLANNING state)
+        ExecutionPlan plan = planningService.createPlan(request.getTask());
+        log.info("Created execution plan with {} steps for task: {}", plan.getSteps().size(), request.getTask());
         
         // NEW EXECUTION MODEL: Dynamic tool routing per state
         ExecutionState currentState = ExecutionState.CREATED;
