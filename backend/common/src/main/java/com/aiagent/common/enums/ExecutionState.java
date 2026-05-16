@@ -6,6 +6,7 @@ public enum ExecutionState {
     CONTEXT_LOADING,
     EXECUTING,
     VERIFYING,
+    PATCH_APPLYING,
     RETRYING,
     COMPLETED,
     FAILED
