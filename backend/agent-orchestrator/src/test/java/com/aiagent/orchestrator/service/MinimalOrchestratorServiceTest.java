@@ -23,6 +23,8 @@ class MinimalOrchestratorServiceTest {
     private FileReaderService fileReaderService;
     private PatchProposalService patchProposalService;
     private PatchExecutionService patchExecutionService;
+    private BackupService backupService;
+    private PatchSafetyService patchSafetyService;
 
     @BeforeEach
     void setUp() {
@@ -31,6 +33,8 @@ class MinimalOrchestratorServiceTest {
         contextLoaderService = new ContextLoaderService();
         fileReaderService = new FileReaderService();
         patchProposalService = new PatchProposalService();
+        backupService = new BackupService();
+        patchSafetyService = new PatchSafetyService();
         patchExecutionService = new PatchExecutionService();
         minimalOrchestratorService = new MinimalOrchestratorService();
         
@@ -59,6 +63,15 @@ class MinimalOrchestratorServiceTest {
             java.lang.reflect.Field orchestratorExecutionField = MinimalOrchestratorService.class.getDeclaredField("patchExecutionService");
             orchestratorExecutionField.setAccessible(true);
             orchestratorExecutionField.set(minimalOrchestratorService, patchExecutionService);
+            
+            // Inject safety services into PatchExecutionService
+            java.lang.reflect.Field backupField = PatchExecutionService.class.getDeclaredField("backupService");
+            backupField.setAccessible(true);
+            backupField.set(patchExecutionService, backupService);
+            
+            java.lang.reflect.Field safetyField = PatchExecutionService.class.getDeclaredField("patchSafetyService");
+            safetyField.setAccessible(true);
+            safetyField.set(patchExecutionService, patchSafetyService);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
