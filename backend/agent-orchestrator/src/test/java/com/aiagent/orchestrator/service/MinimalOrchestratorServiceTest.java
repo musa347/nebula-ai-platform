@@ -21,6 +21,7 @@ class MinimalOrchestratorServiceTest {
     private StateTransitionService stateTransitionService;
     private ToolRouterService toolRouterService;
     private ToolExecutionService toolExecutionService;
+    private ExecutionStatsService executionStatsService;
     private ContextLoaderService contextLoaderService;
     private FileReaderService fileReaderService;
     private PatchProposalService patchProposalService;
@@ -32,6 +33,7 @@ class MinimalOrchestratorServiceTest {
     void setUp() {
         stateTransitionService = new StateTransitionService();
         executionSessionService = new ExecutionSessionService();
+        executionStatsService = new ExecutionStatsService();
         contextLoaderService = new ContextLoaderService();
         fileReaderService = new FileReaderService();
         patchProposalService = new PatchProposalService();
@@ -77,6 +79,16 @@ class MinimalOrchestratorServiceTest {
             executionField.setAccessible(true);
             executionField.set(toolExecutionService, patchExecutionService);
             
+            // Inject ExecutionStatsService into ToolExecutionService
+            java.lang.reflect.Field statsField = ToolExecutionService.class.getDeclaredField("executionStatsService");
+            statsField.setAccessible(true);
+            statsField.set(toolExecutionService, executionStatsService);
+            
+            // Inject ExecutionStatsService into ToolRouterService
+            java.lang.reflect.Field routerStatsField = ToolRouterService.class.getDeclaredField("executionStatsService");
+            routerStatsField.setAccessible(true);
+            routerStatsField.set(toolRouterService, executionStatsService);
+            
             // Inject safety services into PatchExecutionService
             java.lang.reflect.Field backupField = PatchExecutionService.class.getDeclaredField("backupService");
             backupField.setAccessible(true);
@@ -86,7 +98,7 @@ class MinimalOrchestratorServiceTest {
             safetyField.setAccessible(true);
             safetyField.set(patchExecutionService, patchSafetyService);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to inject dependencies: " + e.getMessage(), e);
         }
     }
 
