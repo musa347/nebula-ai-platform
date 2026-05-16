@@ -3,6 +3,7 @@ package com.aiagent.common.dto;
 import com.aiagent.common.enums.ExecutionState;
 import com.aiagent.common.model.LoadedContext;
 import com.aiagent.common.model.FilePreview;
+import com.aiagent.common.model.PatchProposal;
 import java.util.List;
 
 public class OrchestratorTaskResponse {
@@ -10,6 +11,7 @@ public class OrchestratorTaskResponse {
     private List<ExecutionState> completedStates;
     private List<LoadedContext> contexts;
     private List<FilePreview> previews;
+    private List<PatchProposal> patches;
 
     public OrchestratorTaskResponse() {}
 
@@ -29,6 +31,14 @@ public class OrchestratorTaskResponse {
         this.completedStates = completedStates;
         this.contexts = contexts;
         this.previews = previews;
+    }
+
+    public OrchestratorTaskResponse(String executionId, List<ExecutionState> completedStates, List<LoadedContext> contexts, List<FilePreview> previews, List<PatchProposal> patches) {
+        this.executionId = executionId;
+        this.completedStates = completedStates;
+        this.contexts = contexts;
+        this.previews = previews;
+        this.patches = patches;
     }
 
     public String getExecutionId() {
@@ -61,5 +71,13 @@ public class OrchestratorTaskResponse {
 
     public void setPreviews(List<FilePreview> previews) {
         this.previews = previews;
+    }
+
+    public List<PatchProposal> getPatches() {
+        return patches;
+    }
+
+    public void setPatches(List<PatchProposal> patches) {
+        this.patches = patches;
     }
 }
