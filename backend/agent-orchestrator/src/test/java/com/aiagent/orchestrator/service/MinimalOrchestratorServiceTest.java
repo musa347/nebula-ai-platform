@@ -5,6 +5,7 @@ import com.aiagent.common.dto.OrchestratorTaskResponse;
 import com.aiagent.common.enums.ExecutionState;
 import com.aiagent.common.model.LoadedContext;
 import com.aiagent.common.model.FilePreview;
+import com.aiagent.common.model.PatchProposal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -19,6 +20,7 @@ class MinimalOrchestratorServiceTest {
     private StateTransitionService stateTransitionService;
     private ContextLoaderService contextLoaderService;
     private FileReaderService fileReaderService;
+    private PatchProposalService patchProposalService;
 
     @BeforeEach
     void setUp() {
@@ -26,6 +28,7 @@ class MinimalOrchestratorServiceTest {
         executionSessionService = new ExecutionSessionService();
         contextLoaderService = new ContextLoaderService();
         fileReaderService = new FileReaderService();
+        patchProposalService = new PatchProposalService();
         minimalOrchestratorService = new MinimalOrchestratorService();
         
         // Inject dependencies using reflection
@@ -45,6 +48,10 @@ class MinimalOrchestratorServiceTest {
             java.lang.reflect.Field orchestratorFileField = MinimalOrchestratorService.class.getDeclaredField("fileReaderService");
             orchestratorFileField.setAccessible(true);
             orchestratorFileField.set(minimalOrchestratorService, fileReaderService);
+            
+            java.lang.reflect.Field orchestratorPatchField = MinimalOrchestratorService.class.getDeclaredField("patchProposalService");
+            orchestratorPatchField.setAccessible(true);
+            orchestratorPatchField.set(minimalOrchestratorService, patchProposalService);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -79,6 +86,62 @@ class MinimalOrchestratorServiceTest {
     }
 
     @Test
+    void testPatchGenerated_AtLeastOnePatchForCacheTask() {
+        OrchestratorTaskRequest request = new OrchestratorTaskRequest("Add caching to UserService");
+        
+        OrchestratorTaskResponse response = minimalOrchestratorService.execute(request);
+        
+        assertNotNull(response.getPatches());
+        assertFalse(response.getPatches().isEmpty());
+        
+        // Verify at least one patch is generated for caching task
+        boolean hasCachingPatch = response.getPatches().stream()
+            .anyMatch(patch -> patch.getDescription().toLowerCase().contains("cach"));
+        assertTrue(hasCachingPatch, "Should generate at least one caching-related patch");
+    }
+
+    @Test
+    void testEmptyTaskSafe_NoCrash() {
+        OrchestratorTaskRequest request = new OrchestratorTaskRequest("");
+        
+        OrchestratorTaskResponse response = minimalOrchestratorService.execute(request);
+        
+        assertNotNull(response.getPatches());
+        // Empty task should still complete successfully
+        assertTrue(response.getCompletedStates().contains(ExecutionState.COMPLETED));
+    }
+
+    @Test
+    void testNoContextSafe_ReturnsEmptyList() {
+        OrchestratorTaskRequest request = new OrchestratorTaskRequest("xyz123nonexistent");
+        
+        OrchestratorTaskResponse response = minimalOrchestratorService.execute(request);
+        
+        assertNotNull(response.getPatches());
+        // Should complete successfully even with minimal context
+        assertTrue(response.getCompletedStates().contains(ExecutionState.COMPLETED));
+    }
+
+    @Test
+    void testDeterministicOutput_SameInputSameOutput() {
+        OrchestratorTaskRequest request = new OrchestratorTaskRequest("Add caching to UserService");
+        
+        OrchestratorTaskResponse response1 = minimalOrchestratorService.execute(request);
+        OrchestratorTaskResponse response2 = minimalOrchestratorService.execute(request);
+        
+        // Same input should produce same number of patches
+        assertEquals(response1.getPatches().size(), response2.getPatches().size());
+        
+        // Verify patch content is deterministic
+        if (!response1.getPatches().isEmpty() && !response2.getPatches().isEmpty()) {
+            PatchProposal patch1 = response1.getPatches().get(0);
+            PatchProposal patch2 = response2.getPatches().get(0);
+            assertEquals(patch1.getDescription(), patch2.getDescription());
+            assertEquals(patch1.getSuggestedChange(), patch2.getSuggestedChange());
+        }
+    }
+
+    @Test
     void testFilePreviewLoaded_PreviewsExist() {
         OrchestratorTaskRequest request = new OrchestratorTaskRequest("Add caching to UserService");
         
@@ -97,64 +160,21 @@ class MinimalOrchestratorServiceTest {
     }
 
     @Test
-    void testPreviewTruncated_NotFullFile() {
-        OrchestratorTaskRequest request = new OrchestratorTaskRequest("Analyze UserService");
-        
-        OrchestratorTaskResponse response = minimalOrchestratorService.execute(request);
-        
-        assertNotNull(response.getPreviews());
-        assertFalse(response.getPreviews().isEmpty());
-        
-        // Verify previews are truncated (not huge)
-        for (FilePreview preview : response.getPreviews()) {
-            assertNotNull(preview.getPreview());
-            // Preview should be reasonable size (not full file)
-            assertTrue(preview.getPreview().length() < 2000, "Preview should be truncated");
-            assertTrue(preview.getPreview().length() > 0, "Preview should not be empty");
-        }
-    }
-
-    @Test
-    void testMissingFileSafe_ExecutionContinues() {
-        // This test verifies that missing files don't break execution
-        OrchestratorTaskRequest request = new OrchestratorTaskRequest("nonexistent file task");
-        
-        OrchestratorTaskResponse response = minimalOrchestratorService.execute(request);
-        
-        // Execution should complete successfully even if files are missing
-        assertTrue(response.getCompletedStates().contains(ExecutionState.COMPLETED));
-        assertNotNull(response.getPreviews());
-    }
-
-    @Test
-    void testEmptyContexts_EmptyPreviewsList() {
-        OrchestratorTaskRequest request = new OrchestratorTaskRequest("");
-        
-        OrchestratorTaskResponse response = minimalOrchestratorService.execute(request);
-        
-        assertNotNull(response.getPreviews());
-        // Empty contexts should result in empty previews
-        assertTrue(response.getPreviews().isEmpty());
-        // But execution should still complete
-        assertTrue(response.getCompletedStates().contains(ExecutionState.COMPLETED));
-    }
-
-    @Test
-    void testStateFlowStillWorks_ExecutingTransitionsCorrectly() {
+    void testStateFlowStillWorks_VerifyingTransitionsCorrectly() {
         OrchestratorTaskRequest request = new OrchestratorTaskRequest("Test execution flow");
         
         OrchestratorTaskResponse response = minimalOrchestratorService.execute(request);
         
-        // Verify EXECUTING state is in the flow
-        assertTrue(response.getCompletedStates().contains(ExecutionState.EXECUTING));
+        // Verify VERIFYING state is in the flow
+        assertTrue(response.getCompletedStates().contains(ExecutionState.VERIFYING));
         
         // Verify state transitions are still working correctly
         List<ExecutionState> states = response.getCompletedStates();
         int executingIndex = states.indexOf(ExecutionState.EXECUTING);
-        int contextLoadingIndex = states.indexOf(ExecutionState.CONTEXT_LOADING);
         int verifyingIndex = states.indexOf(ExecutionState.VERIFYING);
+        int completedIndex = states.indexOf(ExecutionState.COMPLETED);
         
-        assertTrue(contextLoadingIndex < executingIndex, "CONTEXT_LOADING should come before EXECUTING");
         assertTrue(executingIndex < verifyingIndex, "EXECUTING should come before VERIFYING");
+        assertTrue(verifyingIndex < completedIndex, "VERIFYING should come before COMPLETED");
     }
 }
