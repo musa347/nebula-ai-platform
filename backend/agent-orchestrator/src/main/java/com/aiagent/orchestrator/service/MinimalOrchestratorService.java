@@ -57,7 +57,11 @@ public class MinimalOrchestratorService {
         if (result.isAllowed()) {
             completedStates.add(ExecutionState.CONTEXT_LOADING);
             // Load context during CONTEXT_LOADING state
-            contexts = contextLoaderService.loadContext(request.getTask());
+            if (request.getTargetFile() != null) {
+                contexts = contextLoaderService.loadContext(request.getTask(), request.getTargetFile());
+            } else {
+                contexts = contextLoaderService.loadContext(request.getTask());
+            }
         } else {
             return handleFailure(session.getExecutionId(), completedStates, contexts, previews, patches, patchResults);
         }
