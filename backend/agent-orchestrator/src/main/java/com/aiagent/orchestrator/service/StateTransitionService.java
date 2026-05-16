@@ -15,7 +15,8 @@ public class StateTransitionService {
         ExecutionState.PLANNING, Set.of(ExecutionState.CONTEXT_LOADING),
         ExecutionState.CONTEXT_LOADING, Set.of(ExecutionState.EXECUTING),
         ExecutionState.EXECUTING, Set.of(ExecutionState.VERIFYING),
-        ExecutionState.VERIFYING, Set.of(ExecutionState.COMPLETED, ExecutionState.RETRYING),
+        ExecutionState.VERIFYING, Set.of(ExecutionState.PATCH_APPLYING, ExecutionState.RETRYING),
+        ExecutionState.PATCH_APPLYING, Set.of(ExecutionState.COMPLETED),
         ExecutionState.RETRYING, Set.of(ExecutionState.EXECUTING)
     );
 
