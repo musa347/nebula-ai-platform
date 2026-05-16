@@ -19,6 +19,8 @@ class MinimalOrchestratorServiceTest {
     private MinimalOrchestratorService minimalOrchestratorService;
     private ExecutionSessionService executionSessionService;
     private StateTransitionService stateTransitionService;
+    private ToolRouterService toolRouterService;
+    private ToolExecutionService toolExecutionService;
     private ContextLoaderService contextLoaderService;
     private FileReaderService fileReaderService;
     private PatchProposalService patchProposalService;
@@ -36,6 +38,8 @@ class MinimalOrchestratorServiceTest {
         backupService = new BackupService();
         patchSafetyService = new PatchSafetyService();
         patchExecutionService = new PatchExecutionService();
+        toolRouterService = new ToolRouterService();
+        toolExecutionService = new ToolExecutionService();
         minimalOrchestratorService = new MinimalOrchestratorService();
         
         // Inject dependencies using reflection
@@ -48,21 +52,30 @@ class MinimalOrchestratorServiceTest {
             orchestratorSessionField.setAccessible(true);
             orchestratorSessionField.set(minimalOrchestratorService, executionSessionService);
             
-            java.lang.reflect.Field orchestratorContextField = MinimalOrchestratorService.class.getDeclaredField("contextLoaderService");
-            orchestratorContextField.setAccessible(true);
-            orchestratorContextField.set(minimalOrchestratorService, contextLoaderService);
+            java.lang.reflect.Field orchestratorRouterField = MinimalOrchestratorService.class.getDeclaredField("toolRouterService");
+            orchestratorRouterField.setAccessible(true);
+            orchestratorRouterField.set(minimalOrchestratorService, toolRouterService);
             
-            java.lang.reflect.Field orchestratorFileField = MinimalOrchestratorService.class.getDeclaredField("fileReaderService");
-            orchestratorFileField.setAccessible(true);
-            orchestratorFileField.set(minimalOrchestratorService, fileReaderService);
+            java.lang.reflect.Field orchestratorToolField = MinimalOrchestratorService.class.getDeclaredField("toolExecutionService");
+            orchestratorToolField.setAccessible(true);
+            orchestratorToolField.set(minimalOrchestratorService, toolExecutionService);
             
-            java.lang.reflect.Field orchestratorPatchField = MinimalOrchestratorService.class.getDeclaredField("patchProposalService");
-            orchestratorPatchField.setAccessible(true);
-            orchestratorPatchField.set(minimalOrchestratorService, patchProposalService);
+            // Inject services into ToolExecutionService
+            java.lang.reflect.Field contextField = ToolExecutionService.class.getDeclaredField("contextLoaderService");
+            contextField.setAccessible(true);
+            contextField.set(toolExecutionService, contextLoaderService);
             
-            java.lang.reflect.Field orchestratorExecutionField = MinimalOrchestratorService.class.getDeclaredField("patchExecutionService");
-            orchestratorExecutionField.setAccessible(true);
-            orchestratorExecutionField.set(minimalOrchestratorService, patchExecutionService);
+            java.lang.reflect.Field fileField = ToolExecutionService.class.getDeclaredField("fileReaderService");
+            fileField.setAccessible(true);
+            fileField.set(toolExecutionService, fileReaderService);
+            
+            java.lang.reflect.Field patchField = ToolExecutionService.class.getDeclaredField("patchProposalService");
+            patchField.setAccessible(true);
+            patchField.set(toolExecutionService, patchProposalService);
+            
+            java.lang.reflect.Field executionField = ToolExecutionService.class.getDeclaredField("patchExecutionService");
+            executionField.setAccessible(true);
+            executionField.set(toolExecutionService, patchExecutionService);
             
             // Inject safety services into PatchExecutionService
             java.lang.reflect.Field backupField = PatchExecutionService.class.getDeclaredField("backupService");
