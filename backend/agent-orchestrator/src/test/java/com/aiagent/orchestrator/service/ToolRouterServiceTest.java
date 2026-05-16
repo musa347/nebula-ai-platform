@@ -11,10 +11,20 @@ import static org.junit.jupiter.api.Assertions.*;
 class ToolRouterServiceTest {
 
     private ToolRouterService toolRouterService;
+    private ExecutionStatsService executionStatsService;
 
     @BeforeEach
     void setUp() {
+        executionStatsService = new ExecutionStatsService();
         toolRouterService = new ToolRouterService();
+        // Use reflection to inject the dependency
+        try {
+            var field = ToolRouterService.class.getDeclaredField("executionStatsService");
+            field.setAccessible(true);
+            field.set(toolRouterService, executionStatsService);
+        } catch (Exception e) {
+            fail("Failed to inject ExecutionStatsService: " + e.getMessage());
+        }
     }
 
     @Test
@@ -23,7 +33,7 @@ class ToolRouterServiceTest {
         ToolDecision decision = toolRouterService.decide(ExecutionState.PLANNING, "Add caching", null);
         
         assertEquals(ToolType.REPO_SEARCH, decision.getToolType());
-        assertTrue(decision.getReason().contains("Find files"));
+        assertTrue(decision.getReason().contains("state"));
     }
 
     @Test
@@ -32,7 +42,7 @@ class ToolRouterServiceTest {
         ToolDecision decision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "Add logging", null);
         
         assertEquals(ToolType.SYMBOL_SEARCH, decision.getToolType());
-        assertTrue(decision.getReason().contains("symbol search"));
+        assertTrue(decision.getReason().contains("state"));
     }
 
     @Test
@@ -41,7 +51,7 @@ class ToolRouterServiceTest {
         ToolDecision decision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "Add dependency injection", null);
         
         assertEquals(ToolType.DEPENDENCY_ANALYSIS, decision.getToolType());
-        assertTrue(decision.getReason().contains("dependency"));
+        assertTrue(decision.getReason().contains("Best performing tool"));
     }
 
     @Test
@@ -50,7 +60,7 @@ class ToolRouterServiceTest {
         ToolDecision decision = toolRouterService.decide(ExecutionState.EXECUTING, "Analyze code", null);
         
         assertEquals(ToolType.FILE_READ, decision.getToolType());
-        assertTrue(decision.getReason().contains("Inspect code"));
+        assertTrue(decision.getReason().contains("state"));
     }
 
     @Test
@@ -59,7 +69,7 @@ class ToolRouterServiceTest {
         ToolDecision decision = toolRouterService.decide(ExecutionState.VERIFYING, "Fix bug", null);
         
         assertEquals(ToolType.PATCH_GENERATE, decision.getToolType());
-        assertTrue(decision.getReason().contains("Propose changes"));
+        assertTrue(decision.getReason().contains("state"));
     }
 
     @Test
@@ -68,7 +78,7 @@ class ToolRouterServiceTest {
         ToolDecision decision = toolRouterService.decide(ExecutionState.PATCH_APPLYING, "Apply fixes", null);
         
         assertEquals(ToolType.PATCH_APPLY, decision.getToolType());
-        assertTrue(decision.getReason().contains("Apply generated patches"));
+        assertTrue(decision.getReason().contains("state"));
     }
 
     @Test
@@ -77,7 +87,7 @@ class ToolRouterServiceTest {
         ToolDecision decision = toolRouterService.decide(ExecutionState.COMPLETED, "Task done", null);
         
         assertEquals(ToolType.NONE, decision.getToolType());
-        assertTrue(decision.getReason().contains("No tool needed"));
+        assertTrue(decision.getReason().contains("No tools available"));
     }
 
     @Test
@@ -88,19 +98,68 @@ class ToolRouterServiceTest {
         assertEquals(ToolType.NONE, decision.getToolType());
         assertTrue(decision.getReason().contains("No state provided"));
     }
-
+    
     @Test
-    void testContextStageKeywordMatching() {
-        // Test symbol-related keywords
-        ToolDecision symbolDecision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "Find method signatures", null);
-        assertEquals(ToolType.SYMBOL_SEARCH, symbolDecision.getToolType());
+    void testAdaptiveRoutingPrefersSuccessfulTool() {
+        // Record stats to show SYMBOL_SEARCH is more successful than DEPENDENCY_ANALYSIS
+        executionStatsService.recordSuccess(ToolType.SYMBOL_SEARCH, 100);
+        executionStatsService.recordSuccess(ToolType.SYMBOL_SEARCH, 100);
+        executionStatsService.recordSuccess(ToolType.SYMBOL_SEARCH, 100);
+        executionStatsService.recordSuccess(ToolType.SYMBOL_SEARCH, 100);
+        executionStatsService.recordFailure(ToolType.SYMBOL_SEARCH, 100);
         
-        // Test import-related keywords
-        ToolDecision importDecision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "Analyze import statements", null);
-        assertEquals(ToolType.DEPENDENCY_ANALYSIS, importDecision.getToolType());
+        executionStatsService.recordSuccess(ToolType.DEPENDENCY_ANALYSIS, 150);
+        executionStatsService.recordFailure(ToolType.DEPENDENCY_ANALYSIS, 150);
+        executionStatsService.recordFailure(ToolType.DEPENDENCY_ANALYSIS, 150);
+        executionStatsService.recordFailure(ToolType.DEPENDENCY_ANALYSIS, 150);
+        executionStatsService.recordFailure(ToolType.DEPENDENCY_ANALYSIS, 150);
         
-        // Test library-related keywords
-        ToolDecision libraryDecision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "Check library usage", null);
-        assertEquals(ToolType.DEPENDENCY_ANALYSIS, libraryDecision.getToolType());
+        ToolDecision decision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "analyze code", null);
+        
+        assertEquals(ToolType.SYMBOL_SEARCH, decision.getToolType());
+        assertTrue(decision.getReason().contains("Best performing tool"));
     }
+    
+    @Test
+    void testAdaptiveRoutingPenalizesSlowTool() {
+        // Record stats to show DEPENDENCY_ANALYSIS is slower than SYMBOL_SEARCH
+        executionStatsService.recordSuccess(ToolType.SYMBOL_SEARCH, 200);
+        executionStatsService.recordFailure(ToolType.SYMBOL_SEARCH, 200);
+        
+        executionStatsService.recordSuccess(ToolType.DEPENDENCY_ANALYSIS, 2000);
+        executionStatsService.recordFailure(ToolType.DEPENDENCY_ANALYSIS, 2000);
+        
+        ToolDecision decision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "analyze code", null);
+        
+        assertEquals(ToolType.SYMBOL_SEARCH, decision.getToolType());
+        assertTrue(decision.getReason().contains("Best performing tool"));
+    }
+    
+    @Test
+    void testAdaptiveRoutingWithTaskBonus() {
+        // Record equal stats but task should give bonus to DEPENDENCY_ANALYSIS
+        executionStatsService.recordSuccess(ToolType.SYMBOL_SEARCH, 100);
+        executionStatsService.recordFailure(ToolType.SYMBOL_SEARCH, 100);
+        
+        executionStatsService.recordSuccess(ToolType.DEPENDENCY_ANALYSIS, 100);
+        executionStatsService.recordFailure(ToolType.DEPENDENCY_ANALYSIS, 100);
+        
+        ToolDecision decision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "analyze dependency imports", null);
+        
+        assertEquals(ToolType.DEPENDENCY_ANALYSIS, decision.getToolType());
+        assertTrue(decision.getReason().contains("Best performing tool"));
+    }
+    
+    @Test
+    void testEmptyStatsStillWorks() {
+        // No recorded stats (new tools with no history)
+        ToolDecision decision = toolRouterService.decide(ExecutionState.CONTEXT_LOADING, "analyze code", null);
+        
+        // Should still make a decision (first tool in candidates list)
+        assertEquals(ToolType.SYMBOL_SEARCH, decision.getToolType());
+        assertTrue(decision.getReason().contains("Best performing tool"));
+    }
+
+
+
 }

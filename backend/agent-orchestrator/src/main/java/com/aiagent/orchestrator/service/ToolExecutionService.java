@@ -30,6 +30,9 @@ public class ToolExecutionService {
 
     @Autowired
     private PatchExecutionService patchExecutionService;
+    
+    @Autowired
+    private ExecutionStatsService executionStatsService;
 
     public static class ToolExecutionResult {
         private boolean success;
@@ -52,12 +55,25 @@ public class ToolExecutionService {
             return new ToolExecutionResult(false, "Invalid tool decision", null);
         }
 
+        long startTime = System.currentTimeMillis();
+        ToolExecutionResult result;
+        
         try {
-            return executeByType(decision.getToolType(), task, targetFile);
+            result = executeByType(decision.getToolType(), task, targetFile);
         } catch (Exception e) {
             log.error("Tool execution failed for {}: {}", decision.getToolType(), e.getMessage(), e);
-            return new ToolExecutionResult(false, "Tool execution error: " + e.getMessage(), null);
+            result = new ToolExecutionResult(false, "Tool execution error: " + e.getMessage(), null);
         }
+        
+        // Record execution statistics
+        long duration = System.currentTimeMillis() - startTime;
+        if (result.isSuccess()) {
+            executionStatsService.recordSuccess(decision.getToolType(), duration);
+        } else {
+            executionStatsService.recordFailure(decision.getToolType(), duration);
+        }
+        
+        return result;
     }
 
     private ToolExecutionResult executeByType(ToolType toolType, String task, String targetFile) {
