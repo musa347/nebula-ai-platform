@@ -5,6 +5,7 @@ import com.aiagent.common.dto.OrchestratorTaskResponse;
 import com.aiagent.common.enums.ExecutionState;
 import com.aiagent.common.model.ExecutionSession;
 import com.aiagent.common.model.LoadedContext;
+import com.aiagent.common.model.FilePreview;
 import com.aiagent.common.model.TransitionResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,10 +21,14 @@ public class MinimalOrchestratorService {
     
     @Autowired
     private ContextLoaderService contextLoaderService;
+    
+    @Autowired
+    private FileReaderService fileReaderService;
 
     public OrchestratorTaskResponse execute(OrchestratorTaskRequest request) {
         List<ExecutionState> completedStates = new ArrayList<>();
         List<LoadedContext> contexts = new ArrayList<>();
+        List<FilePreview> previews = new ArrayList<>();
         
         // Step 1: Create session (CREATED state)
         ExecutionSession session = executionSessionService.create();
@@ -34,7 +39,7 @@ public class MinimalOrchestratorService {
         if (result.isAllowed()) {
             completedStates.add(ExecutionState.PLANNING);
         } else {
-            return handleFailure(session.getExecutionId(), completedStates, contexts);
+            return handleFailure(session.getExecutionId(), completedStates, contexts, previews);
         }
         
         // Step 3: Transition to CONTEXT_LOADING
@@ -44,15 +49,17 @@ public class MinimalOrchestratorService {
             // Load context during CONTEXT_LOADING state
             contexts = contextLoaderService.loadContext(request.getTask());
         } else {
-            return handleFailure(session.getExecutionId(), completedStates, contexts);
+            return handleFailure(session.getExecutionId(), completedStates, contexts, previews);
         }
         
         // Step 4: Transition to EXECUTING
         result = executionSessionService.updateState(session.getExecutionId(), ExecutionState.EXECUTING);
         if (result.isAllowed()) {
             completedStates.add(ExecutionState.EXECUTING);
+            // Read file previews during EXECUTING state
+            previews = fileReaderService.readFilePreviews(contexts);
         } else {
-            return handleFailure(session.getExecutionId(), completedStates, contexts);
+            return handleFailure(session.getExecutionId(), completedStates, contexts, previews);
         }
         
         // Step 5: Transition to VERIFYING
@@ -60,7 +67,7 @@ public class MinimalOrchestratorService {
         if (result.isAllowed()) {
             completedStates.add(ExecutionState.VERIFYING);
         } else {
-            return handleFailure(session.getExecutionId(), completedStates, contexts);
+            return handleFailure(session.getExecutionId(), completedStates, contexts, previews);
         }
         
         // Step 6: Transition to COMPLETED
@@ -68,15 +75,15 @@ public class MinimalOrchestratorService {
         if (result.isAllowed()) {
             completedStates.add(ExecutionState.COMPLETED);
         } else {
-            return handleFailure(session.getExecutionId(), completedStates, contexts);
+            return handleFailure(session.getExecutionId(), completedStates, contexts, previews);
         }
         
-        return new OrchestratorTaskResponse(session.getExecutionId(), completedStates, contexts);
+        return new OrchestratorTaskResponse(session.getExecutionId(), completedStates, contexts, previews);
     }
     
-    private OrchestratorTaskResponse handleFailure(String executionId, List<ExecutionState> completedStates, List<LoadedContext> contexts) {
+    private OrchestratorTaskResponse handleFailure(String executionId, List<ExecutionState> completedStates, List<LoadedContext> contexts, List<FilePreview> previews) {
         executionSessionService.updateState(executionId, ExecutionState.FAILED);
         completedStates.add(ExecutionState.FAILED);
-        return new OrchestratorTaskResponse(executionId, completedStates, contexts);
+        return new OrchestratorTaskResponse(executionId, completedStates, contexts, previews);
     }
 }

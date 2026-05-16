@@ -2,12 +2,14 @@ package com.aiagent.common.dto;
 
 import com.aiagent.common.enums.ExecutionState;
 import com.aiagent.common.model.LoadedContext;
+import com.aiagent.common.model.FilePreview;
 import java.util.List;
 
 public class OrchestratorTaskResponse {
     private String executionId;
     private List<ExecutionState> completedStates;
     private List<LoadedContext> contexts;
+    private List<FilePreview> previews;
 
     public OrchestratorTaskResponse() {}
 
@@ -20,6 +22,13 @@ public class OrchestratorTaskResponse {
         this.executionId = executionId;
         this.completedStates = completedStates;
         this.contexts = contexts;
+    }
+
+    public OrchestratorTaskResponse(String executionId, List<ExecutionState> completedStates, List<LoadedContext> contexts, List<FilePreview> previews) {
+        this.executionId = executionId;
+        this.completedStates = completedStates;
+        this.contexts = contexts;
+        this.previews = previews;
     }
 
     public String getExecutionId() {
@@ -44,5 +53,13 @@ public class OrchestratorTaskResponse {
 
     public void setContexts(List<LoadedContext> contexts) {
         this.contexts = contexts;
+    }
+
+    public List<FilePreview> getPreviews() {
+        return previews;
+    }
+
+    public void setPreviews(List<FilePreview> previews) {
+        this.previews = previews;
     }
 }
