@@ -4,6 +4,8 @@ public class PatchExecutionResult {
     private String file;
     private boolean success;
     private String message;
+    private boolean reverted;
+    private String backupPath;
 
     public PatchExecutionResult() {}
 
@@ -11,6 +13,7 @@ public class PatchExecutionResult {
         this.file = file;
         this.success = success;
         this.message = message;
+        this.reverted = false;
     }
 
     public String getFile() {
@@ -35,5 +38,21 @@ public class PatchExecutionResult {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public boolean isReverted() {
+        return reverted;
+    }
+
+    public void setReverted(boolean reverted) {
+        this.reverted = reverted;
+    }
+
+    public String getBackupPath() {
+        return backupPath;
+    }
+
+    public void setBackupPath(String backupPath) {
+        this.backupPath = backupPath;
     }
 }

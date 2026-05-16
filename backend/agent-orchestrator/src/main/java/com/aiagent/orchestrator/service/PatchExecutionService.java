@@ -2,8 +2,10 @@ package com.aiagent.orchestrator.service;
 
 import com.aiagent.common.model.PatchProposal;
 import com.aiagent.common.model.PatchExecutionResult;
+import com.aiagent.common.model.FileBackup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -20,6 +22,12 @@ public class PatchExecutionService {
     
     @Value("${mcp.server.url:http://localhost:8081}")
     private String mcpServerUrl;
+    
+    @Autowired
+    private BackupService backupService;
+    
+    @Autowired
+    private PatchSafetyService patchSafetyService;
     
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -53,18 +61,62 @@ public class PatchExecutionService {
     }
 
     private PatchExecutionResult executePatch(PatchProposal patch) {
+        FileBackup backup = null;
+        
         try {
-            // For now, simulate patch execution since we don't have real MCP server integration
-            // In real implementation, this would call MCP server filesystem.patch endpoint
-            return simulatePatchExecution(patch);
+            // STEP 1: Validate patch safety
+            PatchSafetyService.SafetyResult safetyResult = patchSafetyService.validate(
+                patch.getFile(), 
+                patch.getDescription() // Using description as patch content for validation
+            );
+            
+            if (!safetyResult.isSafe()) {
+                PatchExecutionResult result = new PatchExecutionResult(
+                    patch.getFile(), 
+                    false, 
+                    "Unsafe patch blocked: " + safetyResult.getReason()
+                );
+                return result;
+            }
+            
+            // STEP 2: Create backup
+            backup = backupService.createBackup(patch.getFile());
+            
+            // STEP 3: Apply patch
+            PatchExecutionResult result = simulatePatchExecution(patch);
+            result.setBackupPath(backup.getBackupPath());
+            
+            // STEP 4: If failure, restore backup
+            if (!result.isSuccess()) {
+                backupService.restoreBackup(backup);
+                result.setReverted(true);
+                result.setMessage(result.getMessage() + " (reverted from backup)");
+            }
+            
+            return result;
             
         } catch (Exception e) {
             log.warn("Failed to execute patch for file: {}", patch.getFile(), e);
-            return new PatchExecutionResult(
+            
+            // Restore backup if it was created
+            if (backup != null) {
+                try {
+                    backupService.restoreBackup(backup);
+                } catch (Exception restoreError) {
+                    log.error("Failed to restore backup: {}", backup.getBackupPath(), restoreError);
+                }
+            }
+            
+            PatchExecutionResult result = new PatchExecutionResult(
                 patch.getFile(), 
                 false, 
                 "Patch execution error: " + e.getMessage()
             );
+            result.setReverted(backup != null);
+            if (backup != null) {
+                result.setBackupPath(backup.getBackupPath());
+            }
+            return result;
         }
     }
 
