@@ -4,6 +4,8 @@ server:
 ai:
   planning:
     enabled: true
+  patch:
+    enabled: true
 
 spring:
   application:
