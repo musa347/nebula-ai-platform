@@ -35,7 +35,7 @@ class MinimalOrchestratorServiceTest {
         stateTransitionService = new StateTransitionService();
         executionSessionService = new ExecutionSessionService();
         executionStatsService = new ExecutionStatsService();
-        planningService = new PlanningService();
+        planningService = new PlanningService(new TestAiEnhancedPlanningService());
         contextLoaderService = new ContextLoaderService();
         fileReaderService = new FileReaderService();
         patchProposalService = new PatchProposalService();

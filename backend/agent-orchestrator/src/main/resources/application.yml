@@ -1,6 +1,10 @@
 server:
   port: 8082
 
+ai:
+  planning:
+    enabled: true
+
 spring:
   application:
     name: agent-orchestrator
