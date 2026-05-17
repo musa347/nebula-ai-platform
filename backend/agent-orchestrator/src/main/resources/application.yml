@@ -24,12 +24,9 @@ spring:
           max-tokens: 4000
     
     ollama:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      base-url: http://localhost:11434
       chat:
-        options:
-          model: codellama
-          temperature: 0.1
-          max-tokens: 4000
+        model: qwen2.5-coder:1.5b
 
 orchestrator:
   mcp-server:
