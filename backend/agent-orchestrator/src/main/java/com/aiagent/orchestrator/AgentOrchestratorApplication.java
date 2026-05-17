@@ -8,9 +8,6 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @SpringBootApplication(scanBasePackages = {
     "com.aiagent.orchestrator",
     "com.aiagent.common"
-}, exclude = {
-    org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration.class,
-    org.springframework.ai.autoconfigure.ollama.OllamaAutoConfiguration.class
 })
 @EnableConfigurationProperties
 @EnableAsync
