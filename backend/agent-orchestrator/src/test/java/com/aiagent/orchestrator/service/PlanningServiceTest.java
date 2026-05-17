@@ -16,7 +16,7 @@ class PlanningServiceTest {
 
     @BeforeEach
     void setUp() {
-        planningService = new PlanningService();
+        planningService = new PlanningService(new TestAiEnhancedPlanningService());
     }
 
     @Test

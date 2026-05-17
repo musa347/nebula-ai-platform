@@ -5,6 +5,7 @@ import com.aiagent.common.model.ExecutionPlan;
 import com.aiagent.common.model.PlanStep;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,11 +24,41 @@ public class PlanningService {
     private static final Pattern READ_ONLY_PATTERN = Pattern.compile("\\b(analyze|review|check|inspect|examine|read)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern CACHE_PATTERN = Pattern.compile("\\b(cache|caching)\\b", Pattern.CASE_INSENSITIVE);
 
+    @Value("${ai.planning.enabled:false}")
+    private boolean aiPlanningEnabled;
+
+    private final AiEnhancedPlanningService aiEnhancedPlanningService;
+
+    public PlanningService(AiEnhancedPlanningService aiEnhancedPlanningService) {
+        this.aiEnhancedPlanningService = aiEnhancedPlanningService;
+    }
+
     public ExecutionPlan createPlan(String task) {
         if (task == null || task.trim().isEmpty()) {
             return createMinimalPlan();
         }
 
+        // Create deterministic plan first
+        ExecutionPlan deterministicPlan = createDeterministicPlan(task);
+        
+        // If AI planning is enabled, try to enhance the plan
+        if (aiPlanningEnabled) {
+            try {
+                ExecutionPlan enhancedPlan = aiEnhancedPlanningService.enhancePlan(task, deterministicPlan);
+                if (enhancedPlan != null) {
+                    log.info("Using AI-enhanced plan for task: {}", task);
+                    return enhancedPlan;
+                }
+            } catch (Exception e) {
+                log.warn("AI plan enhancement failed, using deterministic plan. Error: {}", e.getMessage());
+            }
+        }
+        
+        log.info("Using deterministic plan for task: {}", task);
+        return deterministicPlan;
+    }
+
+    private ExecutionPlan createDeterministicPlan(String task) {
         String executionId = UUID.randomUUID().toString();
         List<PlanStep> steps = new ArrayList<>();
         int stepOrder = 1;
