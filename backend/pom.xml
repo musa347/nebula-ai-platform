@@ -17,6 +17,7 @@
         <module>common</module>
         <module>mcp-server</module>
         <module>agent-orchestrator</module>
+        <module>agent-cli</module>
     </modules>
 
 </project>
