@@ -6,6 +6,8 @@ ai:
     enabled: true
   patch:
     enabled: true
+  failure-analysis:
+    enabled: true
 
 spring:
   application:

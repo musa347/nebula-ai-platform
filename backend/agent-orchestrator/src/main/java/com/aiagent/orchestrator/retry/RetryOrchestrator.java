@@ -5,10 +5,16 @@ import com.aiagent.common.dto.ExecutionEventType;
 import com.aiagent.common.enums.AgentState;
 import com.aiagent.common.enums.FailureType;
 import com.aiagent.orchestrator.actions.EmbabelActions;
+import com.aiagent.orchestrator.dto.AiFailureRequest;
+import com.aiagent.orchestrator.dto.AiFailureResponse;
+import com.aiagent.orchestrator.model.RecoveryStrategy;
+import com.aiagent.orchestrator.service.AiFailureAnalysisService;
 import com.aiagent.orchestrator.service.ExecutionGraphService;
+import com.aiagent.orchestrator.service.RecoveryStrategyService;
 import com.aiagent.orchestrator.trace.ExecutionTrace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
@@ -24,11 +30,23 @@ public class RetryOrchestrator {
     private final EmbabelActions actions;
     private final FailureClassifier classifier;
     private final ExecutionGraphService executionGraphService;
+    private final AiFailureAnalysisService aiFailureAnalysisService;
+    private final RecoveryStrategyService recoveryStrategyService;
+    private final boolean aiRecoveryEnabled;
 
-    public RetryOrchestrator(EmbabelActions actions, FailureClassifier classifier, ExecutionGraphService executionGraphService) {
+    public RetryOrchestrator(
+            EmbabelActions actions,
+            FailureClassifier classifier,
+            ExecutionGraphService executionGraphService,
+            AiFailureAnalysisService aiFailureAnalysisService,
+            RecoveryStrategyService recoveryStrategyService,
+            @Value("${ai.failure-analysis.enabled:true}") boolean aiRecoveryEnabled) {
         this.actions = actions;
         this.classifier = classifier;
         this.executionGraphService = executionGraphService;
+        this.aiFailureAnalysisService = aiFailureAnalysisService;
+        this.recoveryStrategyService = recoveryStrategyService;
+        this.aiRecoveryEnabled = aiRecoveryEnabled;
     }
 
     public Flux<ExecutionEvent> executeWithRetry(String command, RetryPolicy policy) {
@@ -95,6 +113,31 @@ public class RetryOrchestrator {
 
             emit(sink, executionId, ExecutionEventType.FAILURE_ANALYZED,
                     "Failure classified as: " + failureType + " | retryable: " + failureType.isRetryable());
+
+            // AI-enhanced recovery analysis
+            RecoveryStrategy recoveryStrategy = null;
+            if (aiRecoveryEnabled) {
+                try {
+                    AiFailureRequest aiRequest = new AiFailureRequest();
+                    aiRequest.setTask(command);
+                    aiRequest.setExecutionState(state.name());
+                    aiRequest.setToolName("shell.execute");
+                    aiRequest.setStderr(output);
+                    aiRequest.setStdout("");
+                    aiRequest.setContext("Attempt " + attempt);
+
+                    AiFailureResponse aiAnalysis = aiFailureAnalysisService.analyzeFailure(aiRequest);
+                    recoveryStrategy = recoveryStrategyService.buildStrategy(aiAnalysis);
+                    
+                    emit(sink, executionId, ExecutionEventType.FAILURE_ANALYZED,
+                            "AI recovery: " + aiAnalysis.getFailureType() + " | " + aiAnalysis.getSuggestedRecovery());
+                    
+                    log.info("AI recovery strategy: maxRetries={}, actions={}", 
+                            recoveryStrategy.getMaxRetries(), recoveryStrategy.getActions());
+                } catch (Exception e) {
+                    log.warn("AI recovery failed, using deterministic fallback: {}", e.getMessage());
+                }
+            }
 
             if (!failureType.isRetryable()) {
                 transitionState(trace, sink, executionId, state, AgentState.FAILED);
