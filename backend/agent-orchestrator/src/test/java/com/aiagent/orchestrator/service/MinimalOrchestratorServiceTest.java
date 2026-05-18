@@ -7,6 +7,8 @@ import com.aiagent.common.model.LoadedContext;
 import com.aiagent.common.model.FilePreview;
 import com.aiagent.common.model.PatchProposal;
 import com.aiagent.common.model.PatchExecutionResult;
+import com.aiagent.orchestrator.learning.ToolBiasService;
+import com.aiagent.orchestrator.learning.LearningSignalStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -29,12 +31,46 @@ class MinimalOrchestratorServiceTest {
     private PatchExecutionService patchExecutionService;
     private BackupService backupService;
     private PatchSafetyService patchSafetyService;
+    private ToolBiasService toolBiasService;
+    private com.aiagent.orchestrator.adaptive.AdaptivePlanningService adaptivePlanningService;
+    private com.aiagent.orchestrator.adaptive.ExecutionRiskAnalyzer riskAnalyzer;
+    private com.aiagent.orchestrator.adaptive.ToolStrategyEngine strategyEngine;
 
     @BeforeEach
     void setUp() {
         stateTransitionService = new StateTransitionService();
         executionSessionService = new ExecutionSessionService();
         executionStatsService = new ExecutionStatsService();
+        LearningSignalStore learningSignalStore = new LearningSignalStore();
+        toolBiasService = new ToolBiasService(learningSignalStore);
+        
+        // Create adaptive services with stub implementations
+        com.aiagent.orchestrator.memory.SemanticMemoryStore memoryStore = new com.aiagent.orchestrator.memory.SemanticMemoryStore();
+        com.aiagent.orchestrator.embedding.CosineSimilarityService similarityService = 
+            new com.aiagent.orchestrator.embedding.CosineSimilarityService();
+        
+        // Create stub EmbeddingService using reflection to avoid constructor issues
+        com.aiagent.orchestrator.embedding.EmbeddingService embeddingService = 
+            new com.aiagent.orchestrator.embedding.EmbeddingService(
+                "http://localhost:11434", "nomic-embed-text", new com.fasterxml.jackson.databind.ObjectMapper()) {
+                @Override
+                public com.aiagent.orchestrator.embedding.EmbeddingResponse generateEmbedding(
+                    com.aiagent.orchestrator.embedding.EmbeddingRequest request) {
+                    // Return empty embedding for tests
+                    return new com.aiagent.orchestrator.embedding.EmbeddingResponse(
+                        request.getSourceId(), java.util.List.of());
+                }
+            };
+        
+        com.aiagent.orchestrator.memory.SemanticMemoryQueryService memoryQueryService = 
+            new com.aiagent.orchestrator.memory.SemanticMemoryQueryService(
+                embeddingService, memoryStore, similarityService);
+        adaptivePlanningService = new com.aiagent.orchestrator.adaptive.AdaptivePlanningService(
+            memoryQueryService, learningSignalStore);
+        riskAnalyzer = new com.aiagent.orchestrator.adaptive.ExecutionRiskAnalyzer(
+            memoryQueryService, learningSignalStore);
+        strategyEngine = new com.aiagent.orchestrator.adaptive.ToolStrategyEngine(learningSignalStore);
+        
         planningService = new PlanningService(new TestAiEnhancedPlanningService());
         contextLoaderService = new ContextLoaderService();
         fileReaderService = new FileReaderService();
@@ -90,10 +126,27 @@ class MinimalOrchestratorServiceTest {
             statsField.setAccessible(true);
             statsField.set(toolExecutionService, executionStatsService);
             
-            // Inject ExecutionStatsService into ToolRouterService
+            // Inject ExecutionStatsService and ToolBiasService into ToolRouterService
             java.lang.reflect.Field routerStatsField = ToolRouterService.class.getDeclaredField("executionStatsService");
             routerStatsField.setAccessible(true);
             routerStatsField.set(toolRouterService, executionStatsService);
+            
+            java.lang.reflect.Field routerBiasField = ToolRouterService.class.getDeclaredField("toolBiasService");
+            routerBiasField.setAccessible(true);
+            routerBiasField.set(toolRouterService, toolBiasService);
+            
+            // Inject adaptive services into MinimalOrchestratorService
+            java.lang.reflect.Field adaptiveField = MinimalOrchestratorService.class.getDeclaredField("adaptivePlanningService");
+            adaptiveField.setAccessible(true);
+            adaptiveField.set(minimalOrchestratorService, adaptivePlanningService);
+            
+            java.lang.reflect.Field riskField = MinimalOrchestratorService.class.getDeclaredField("riskAnalyzer");
+            riskField.setAccessible(true);
+            riskField.set(minimalOrchestratorService, riskAnalyzer);
+            
+            java.lang.reflect.Field strategyField = MinimalOrchestratorService.class.getDeclaredField("strategyEngine");
+            strategyField.setAccessible(true);
+            strategyField.set(minimalOrchestratorService, strategyEngine);
             
             // Inject safety services into PatchExecutionService
             java.lang.reflect.Field backupField = PatchExecutionService.class.getDeclaredField("backupService");
