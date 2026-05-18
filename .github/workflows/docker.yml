@@ -28,6 +28,9 @@ jobs:
           - name: agent-orchestrator
             context: ./backend/agent-orchestrator
             dockerfile: ./backend/agent-orchestrator/Dockerfile
+          - name: agent-cli
+            context: ./backend/agent-cli
+            dockerfile: ./backend/agent-cli/Dockerfile
     
     steps:
     - uses: actions/checkout@v4
