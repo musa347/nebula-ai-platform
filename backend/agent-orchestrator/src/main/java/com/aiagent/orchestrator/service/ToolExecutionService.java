@@ -9,15 +9,20 @@ import com.aiagent.common.model.PatchExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class ToolExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(ToolExecutionService.class);
+
+    @Value("${ai.patch.enabled:false}")
+    private boolean aiPatchEnabled;
 
     @Autowired
     private ContextLoaderService contextLoaderService;
@@ -27,6 +32,9 @@ public class ToolExecutionService {
 
     @Autowired
     private PatchProposalService patchProposalService;
+
+    @Autowired
+    private AiPatchGenerationService aiPatchGenerationService;
 
     @Autowired
     private PatchExecutionService patchExecutionService;
@@ -141,16 +149,89 @@ public class ToolExecutionService {
     }
 
     private ToolExecutionResult executePatchGenerate(String task, String targetFile) {
-        // Generate patches based on current context
+        // ORCH-010C-4: AI Patch Generation Integration
         List<LoadedContext> contexts = (List<LoadedContext>) 
             (targetFile != null ? contextLoaderService.loadContext(task, targetFile) 
                                : contextLoaderService.loadContext(task));
         
         List<FilePreview> previews = fileReaderService.readFilePreviews(contexts);
-        List<PatchProposal> patches = patchProposalService.generatePatches(task, contexts, previews);
+        List<PatchProposal> patches;
         
-        log.info("PATCH_GENERATE executed: generated {} patches", patches.size());
-        return new ToolExecutionResult(true, "Patch generation completed", patches);
+        if (aiPatchEnabled) {
+            try {
+                log.info("Using AI patch generation for task: {}", task);
+                patches = generatePatchesWithAi(task, contexts, previews);
+                
+                if (patches != null && !patches.isEmpty()) {
+                    log.info("AI PATCH_GENERATE executed: generated {} patches", patches.size());
+                    return new ToolExecutionResult(true, "AI patch generation completed", patches);
+                }
+                
+                log.warn("AI patch generation returned empty results, falling back to rule-based engine");
+            } catch (Exception e) {
+                log.warn("AI patch generation failed, falling back to rule-based engine. Error: {}", e.getMessage());
+            }
+        }
+        
+        // Fallback to ORCH-006F rule-based patch engine
+        log.info("Using rule-based patch generation for task: {}", task);
+        patches = patchProposalService.generatePatches(task, contexts, previews);
+        
+        log.info("RULE-BASED PATCH_GENERATE executed: generated {} patches", patches.size());
+        return new ToolExecutionResult(true, "Rule-based patch generation completed", patches);
+    }
+
+    private List<PatchProposal> generatePatchesWithAi(String task, List<LoadedContext> contexts, List<FilePreview> previews) {
+        if (previews == null || previews.isEmpty()) {
+            log.warn("No file previews available for AI patch generation");
+            return null;
+        }
+        
+        // Build context information
+        String contextInfo = buildContextInfo(contexts);
+        
+        // Get known context files for validation
+        Set<String> knownFiles = contexts.stream()
+            .map(LoadedContext::getFile)
+            .collect(Collectors.toSet());
+        
+        // Generate patches for each file preview
+        List<PatchProposal> allPatches = new java.util.ArrayList<>();
+        
+        for (FilePreview preview : previews) {
+            try {
+                List<PatchProposal> filePatches = aiPatchGenerationService.generatePatches(
+                    task,
+                    contextInfo,
+                    preview.getPreview(),
+                    knownFiles
+                );
+                
+                if (filePatches != null) {
+                    allPatches.addAll(filePatches);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to generate AI patches for file {}: {}", preview.getFile(), e.getMessage());
+            }
+        }
+        
+        return allPatches;
+    }
+    
+    private String buildContextInfo(List<LoadedContext> contexts) {
+        if (contexts == null || contexts.isEmpty()) {
+            return "No additional context available";
+        }
+        
+        StringBuilder contextBuilder = new StringBuilder();
+        contextBuilder.append("Available context files:\n");
+        
+        for (LoadedContext context : contexts) {
+            contextBuilder.append("- ").append(context.getFile())
+                         .append(" (").append(context.getReason()).append(")\n");
+        }
+        
+        return contextBuilder.toString();
     }
 
     private ToolExecutionResult executePatchApply(String task, String targetFile) {
