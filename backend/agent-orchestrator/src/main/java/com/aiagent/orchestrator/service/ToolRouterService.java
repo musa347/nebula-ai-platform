@@ -4,6 +4,7 @@ import com.aiagent.common.enums.ExecutionState;
 import com.aiagent.common.enums.ToolType;
 import com.aiagent.common.model.ToolDecision;
 import com.aiagent.common.model.ToolExecutionStats;
+import com.aiagent.orchestrator.learning.ToolBiasService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,9 @@ public class ToolRouterService {
     
     @Autowired
     private ExecutionStatsService executionStatsService;
+    
+    @Autowired
+    private ToolBiasService toolBiasService;
     
     // State to candidate tools mapping
     private static final Map<ExecutionState, List<ToolType>> STATE_TOOL_CANDIDATES = Map.of(
@@ -85,8 +89,14 @@ public class ToolRouterService {
         // Task-specific bonus (simple keyword matching)
         double taskBonus = getTaskBonus(tool, task);
         
-        // Final score: successRate - (failureRate * 0.5) - latencyPenalty + taskBonus
-        return successRate - (failureRate * 0.5) - latencyPenalty + taskBonus;
+        // Base score calculation
+        double baseScore = successRate - (failureRate * 0.5) - latencyPenalty + taskBonus;
+        
+        // Apply learning-based bias adjustment (ORCH-013-5)
+        double finalScore = toolBiasService.adjustScore(tool.name(), baseScore);
+        
+        log.debug("Tool score: tool={}, base={}, final={}", tool, baseScore, finalScore);
+        return finalScore;
     }
     
     private double getTaskBonus(ToolType tool, String task) {

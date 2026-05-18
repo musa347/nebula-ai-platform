@@ -3,6 +3,8 @@ package com.aiagent.orchestrator.service;
 import com.aiagent.common.enums.ExecutionState;
 import com.aiagent.common.enums.ToolType;
 import com.aiagent.common.model.ToolDecision;
+import com.aiagent.orchestrator.learning.ToolBiasService;
+import com.aiagent.orchestrator.learning.LearningSignalStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,18 +14,25 @@ class ToolRouterServiceTest {
 
     private ToolRouterService toolRouterService;
     private ExecutionStatsService executionStatsService;
+    private ToolBiasService toolBiasService;
 
     @BeforeEach
     void setUp() {
         executionStatsService = new ExecutionStatsService();
+        LearningSignalStore learningSignalStore = new LearningSignalStore();
+        toolBiasService = new ToolBiasService(learningSignalStore);
         toolRouterService = new ToolRouterService();
-        // Use reflection to inject the dependency
+        // Use reflection to inject the dependencies
         try {
-            var field = ToolRouterService.class.getDeclaredField("executionStatsService");
-            field.setAccessible(true);
-            field.set(toolRouterService, executionStatsService);
+            var statsField = ToolRouterService.class.getDeclaredField("executionStatsService");
+            statsField.setAccessible(true);
+            statsField.set(toolRouterService, executionStatsService);
+            
+            var biasField = ToolRouterService.class.getDeclaredField("toolBiasService");
+            biasField.setAccessible(true);
+            biasField.set(toolRouterService, toolBiasService);
         } catch (Exception e) {
-            fail("Failed to inject ExecutionStatsService: " + e.getMessage());
+            fail("Failed to inject dependencies: " + e.getMessage());
         }
     }
 

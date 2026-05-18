@@ -11,6 +11,11 @@ import com.aiagent.common.model.PatchProposal;
 import com.aiagent.common.model.PatchExecutionResult;
 import com.aiagent.common.model.TransitionResult;
 import com.aiagent.common.model.ToolDecision;
+import com.aiagent.orchestrator.adaptive.AdaptivePlanningService;
+import com.aiagent.orchestrator.adaptive.ExecutionRisk;
+import com.aiagent.orchestrator.adaptive.ExecutionRiskAnalyzer;
+import com.aiagent.orchestrator.adaptive.ToolStrategy;
+import com.aiagent.orchestrator.adaptive.ToolStrategyEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +40,15 @@ public class MinimalOrchestratorService {
     
     @Autowired
     private ToolExecutionService toolExecutionService;
+    
+    @Autowired
+    private AdaptivePlanningService adaptivePlanningService;
+    
+    @Autowired
+    private ExecutionRiskAnalyzer riskAnalyzer;
+    
+    @Autowired
+    private ToolStrategyEngine strategyEngine;
 
     public OrchestratorTaskResponse execute(OrchestratorTaskRequest request) {
         List<ExecutionState> completedStates = new ArrayList<>();
@@ -50,6 +64,18 @@ public class MinimalOrchestratorService {
         // Step 2: Create execution plan (PLANNING state)
         ExecutionPlan plan = planningService.createPlan(request.getTask());
         log.info("Created execution plan with {} steps for task: {}", plan.getSteps().size(), request.getTask());
+        
+        // ORCH-014-1: Adaptive enrichment
+        ExecutionPlan enrichedPlan = adaptivePlanningService.enrichPlan(plan, request.getTask());
+        log.info("Enriched plan: {} steps", enrichedPlan.getSteps().size());
+        
+        // ORCH-014-3: Risk analysis
+        ExecutionRisk risk = riskAnalyzer.analyzeRisk(request.getTask(), "INITIAL");
+        log.info("Execution risk: score={}, reason={}", risk.getRiskScore(), risk.getReason());
+        
+        // ORCH-014-2: Strategy selection
+        ToolStrategy strategy = strategyEngine.selectStrategy(request.getTask(), false, 1);
+        log.info("Selected strategy: {}", strategy);
         
         // NEW EXECUTION MODEL: Dynamic tool routing per state
         ExecutionState currentState = ExecutionState.CREATED;
