@@ -8,6 +8,9 @@ import com.aiagent.orchestrator.adaptive.ExecutionRisk;
 import com.aiagent.orchestrator.adaptive.ExecutionRiskAnalyzer;
 import com.aiagent.orchestrator.service.PlanningService;
 import com.aiagent.orchestrator.service.ToolExecutionService;
+import com.aiagent.orchestrator.streaming.ExecutionEvent;
+import com.aiagent.orchestrator.streaming.ExecutionEventBus;
+import com.aiagent.orchestrator.streaming.ExecutionEventType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +40,9 @@ public class AutonomousOrchestrator {
     @Autowired
     private ExecutionRiskAnalyzer riskAnalyzer;
     
+    @Autowired(required = false)
+    private ExecutionEventBus eventBus;
+    
     public OrchestratorTaskResponse execute(OrchestratorTaskRequest request) {
         String executionId = UUID.randomUUID().toString();
         AutonomousExecutionContext context = new AutonomousExecutionContext(executionId, request.getTask());
@@ -55,8 +61,16 @@ public class AutonomousOrchestrator {
             NextAction action = nextActionEngine.decide(context);
             log.info("Loop iteration {}: action={}, reason={}", attempts, action.getType(), action.getReason());
             
+            // Emit TOOL_SELECTED event
+            publishEvent(executionId, ExecutionEventType.TOOL_SELECTED, 
+                "Action selected: " + action.getType() + " - " + action.getReason());
+            
             // 2. EXECUTE action
             boolean success = executeAction(action, context, completedStates);
+            
+            // Emit TOOL_EXECUTED event
+            publishEvent(executionId, ExecutionEventType.TOOL_EXECUTED, 
+                "Action executed: " + action.getType() + " - " + (success ? "SUCCESS" : "FAILED"));
             
             // 3. UPDATE context
             long duration = System.currentTimeMillis() - startTime;
@@ -64,9 +78,15 @@ public class AutonomousOrchestrator {
             // 4. LEARN from execution
             learningUpdater.update(context, success, duration);
             
+            // Emit LEARNING_UPDATED event
+            publishEvent(executionId, ExecutionEventType.LEARNING_UPDATED, 
+                "Learning updated from execution");
+            
             // 5. Check completion
             if (action.getType() == ActionType.COMPLETE) {
                 log.info("Autonomous execution completed after {} iterations", attempts);
+                publishEvent(executionId, ExecutionEventType.COMPLETE, 
+                    "Execution completed successfully after " + attempts + " iterations");
                 break;
             }
             
@@ -74,6 +94,8 @@ public class AutonomousOrchestrator {
                 log.warn("Execution failed after failure analysis");
                 context.setCurrentState(ExecutionState.FAILED);
                 completedStates.add(ExecutionState.FAILED);
+                publishEvent(executionId, ExecutionEventType.ERROR, 
+                    "Execution failed after failure analysis");
                 break;
             }
         }
@@ -82,6 +104,8 @@ public class AutonomousOrchestrator {
             log.warn("Max attempts reached, terminating execution");
             context.setCurrentState(ExecutionState.FAILED);
             completedStates.add(ExecutionState.FAILED);
+            publishEvent(executionId, ExecutionEventType.ERROR, 
+                "Max attempts reached, execution terminated");
         }
         
         return new OrchestratorTaskResponse(
@@ -136,9 +160,17 @@ public class AutonomousOrchestrator {
         context.setCurrentState(ExecutionState.PLANNING);
         completedStates.add(ExecutionState.PLANNING);
         
+        // Emit PLAN_CREATED event
+        publishEvent(context.getExecutionId(), ExecutionEventType.PLAN_CREATED, 
+            "Plan created with " + plan.getSteps().size() + " steps");
+        
         // Analyze risk
         ExecutionRisk risk = riskAnalyzer.analyzeRisk(context.getTask(), "PLANNING");
         context.setRisk(risk);
+        
+        // Emit RISK_ANALYZED event
+        publishEvent(context.getExecutionId(), ExecutionEventType.RISK_ANALYZED, 
+            "Risk score: " + risk.getRiskScore() + " - " + risk.getReason());
         
         log.info("Plan created with {} steps, risk={}", plan.getSteps().size(), risk.getRiskScore());
         return true;
@@ -162,8 +194,10 @@ public class AutonomousOrchestrator {
         
         ToolExecutionService.ToolExecutionResult result = toolExecutor.execute(context);
         
-        // After generating patches, move to PATCH_APPLYING state
+        // Emit PATCH_GENERATED event
         if (result.isSuccess()) {
+            publishEvent(context.getExecutionId(), ExecutionEventType.PATCH_GENERATED, 
+                "Patches generated successfully");
             context.setCurrentState(ExecutionState.PATCH_APPLYING);
         }
         
@@ -178,12 +212,21 @@ public class AutonomousOrchestrator {
         
         ToolExecutionService.ToolExecutionResult result = toolExecutor.execute(context);
         
-        // After patch apply, move to complete
+        // Emit PATCH_APPLIED event
         if (result.isSuccess()) {
+            publishEvent(context.getExecutionId(), ExecutionEventType.PATCH_APPLIED, 
+                "Patches applied successfully");
             context.setCurrentState(ExecutionState.COMPLETED);
         }
         
         return result.isSuccess();
+    }
+    
+    private void publishEvent(String executionId, ExecutionEventType type, String message) {
+        if (eventBus != null) {
+            ExecutionEvent event = new ExecutionEvent(executionId, type, message);
+            eventBus.publish(event);
+        }
     }
     
     private boolean executeRetry(AutonomousExecutionContext context, List<ExecutionState> completedStates) {
