@@ -8,20 +8,15 @@ WORKDIR /build
 # Install Maven
 RUN apk add --no-cache maven
 
-# Copy pom files
+# Copy pom files and source code
 COPY pom.xml .
 COPY backend/pom.xml ./backend/
 COPY backend/common/pom.xml ./backend/common/
+COPY backend/common/src ./backend/common/src
 COPY backend/mcp-server/pom.xml ./backend/mcp-server/
 COPY backend/agent-orchestrator/pom.xml ./backend/agent-orchestrator/
-COPY backend/agent-cli/pom.xml ./backend/agent-cli/
-
-# Download dependencies
-RUN mvn dependency:go-offline -DskipTests
-
-# Copy source code
-COPY backend/common/src ./backend/common/src
 COPY backend/agent-orchestrator/src ./backend/agent-orchestrator/src
+COPY backend/agent-cli/pom.xml ./backend/agent-cli/
 COPY backend/agent-cli/src ./backend/agent-cli/src
 
 # Build the application
