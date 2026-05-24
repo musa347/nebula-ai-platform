@@ -14,6 +14,7 @@ public enum ToolType {
     
     // Legacy compatibility
     FILESYSTEM_READ("filesystem.read"),
+    FILESYSTEM_WRITE("filesystem.write"),
     FILESYSTEM_PATCH("filesystem.patch"),
     GIT_STATUS("git.status"),
     GIT_DIFF("git.diff"),

@@ -1,17 +1,16 @@
 package com.aiagent.orchestrator.service.impl;
 
 import com.aiagent.orchestrator.service.AiReasoningService;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
+import com.aiagent.orchestrator.service.HybridAiService;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SpringAiReasoningService implements AiReasoningService {
 
-    private final ChatModel chatModel;
+    private final HybridAiService hybridAiService;
 
-    public SpringAiReasoningService(ChatModel chatModel) {
-        this.chatModel = chatModel;
+    public SpringAiReasoningService(HybridAiService hybridAiService) {
+        this.hybridAiService = hybridAiService;
     }
 
     @Override
@@ -22,7 +21,7 @@ public class SpringAiReasoningService implements AiReasoningService {
         }
 
         try {
-            return chatModel.call(new Prompt(prompt)).getResult().getOutput().getContent();
+            return hybridAiService.callWithFallback(prompt);
         } catch (Exception e) {
             return "Error calling AI model: " + e.getMessage();
         }

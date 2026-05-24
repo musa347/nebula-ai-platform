@@ -14,35 +14,35 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootApplication
 @ComponentScan(basePackages = {"com.aiagent.cli", "com.aiagent.orchestrator"})
 public class AgentCLI implements CommandLineRunner {
-    
+
     @Autowired
     private AutonomousOrchestrator orchestrator;
-    
+
     @Autowired
     private ExecutionTracePrinter tracePrinter;
-    
+
     @Autowired
     private InteractiveAgentSession interactiveSession;
-    
+
     @Autowired(required = false)
     private ExecutionEventBus eventBus;
-    
+
     @Autowired
     private StreamingConsoleRenderer streamingRenderer;
-    
+
     public static void main(String[] args) {
         SpringApplication.run(AgentCLI.class, args);
     }
-    
+
     @Override
     public void run(String... args) throws Exception {
         if (args.length == 0) {
             printUsage();
             return;
         }
-        
+
         String command = args[0];
-        
+
         if ("run".equals(command)) {
             if (args.length < 2) {
                 System.err.println("Error: Task description required");
@@ -67,21 +67,21 @@ public class AgentCLI implements CommandLineRunner {
             printUsage();
         }
     }
-    
+
     private void executeTaskStreaming(String task) {
         System.out.println("\n=== AI AGENT STREAMING EXECUTION ===\n");
         System.out.println("Task: " + task + "\n");
-        
+
         // Subscribe to event stream
         if (eventBus != null) {
             streamingRenderer.start();
             eventBus.subscribe(streamingRenderer);
         }
-        
+
         try {
             OrchestratorTaskRequest request = new OrchestratorTaskRequest(task);
             OrchestratorTaskResponse response = orchestrator.execute(request);
-            
+
             System.out.println();
             printResult(response);
         } finally {
@@ -91,34 +91,63 @@ public class AgentCLI implements CommandLineRunner {
             }
         }
     }
-    
+
     private void executeTask(String task) {
         System.out.println("\n=== AI AGENT EXECUTION ===\n");
         System.out.println("Task: " + task + "\n");
-        
+
+        String workspacePath = System.getProperty("user.dir");
+        java.util.List<String> sourceFiles = scanWorkspaceFiles(workspacePath);
+
         OrchestratorTaskRequest request = new OrchestratorTaskRequest(task);
+        request.setWorkspacePath(workspacePath);
+        request.setSourceFiles(sourceFiles);
+
         OrchestratorTaskResponse response = orchestrator.execute(request);
-        
+
         tracePrinter.print(response);
-        
+
         printResult(response);
     }
-    
+
+    private java.util.List<String> scanWorkspaceFiles(String workspacePath) {
+        java.util.List<String> files = new java.util.ArrayList<>();
+        try {
+            java.nio.file.Files.walk(java.nio.file.Paths.get(workspacePath))
+                    .filter(java.nio.file.Files::isRegularFile)
+                    .filter(p -> {
+                        String name = p.toString();
+                        return name.endsWith(".java") || name.endsWith(".kt") ||
+                                name.endsWith(".py") || name.endsWith(".js") || name.endsWith(".ts") ||
+                                name.endsWith(".xml") || name.endsWith(".properties") ||
+                                name.endsWith(".yml") || name.endsWith(".yaml") ||
+                                name.endsWith(".gradle") || name.endsWith(".json");
+                    })
+                    .filter(p -> !p.toString().contains("/target/") &&
+                            !p.toString().contains("/build/") &&
+                            !p.toString().contains("/node_modules/"))
+                    .forEach(p -> files.add(p.toString()));
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to scan workspace: " + e.getMessage());
+        }
+        return files;
+    }
+
     private void printResult(OrchestratorTaskResponse response) {
         System.out.println("\n[RESULT]");
-        
+
         boolean success = response.getCompletedStates().contains(ExecutionState.COMPLETED);
         if (success) {
             System.out.println("✓ SUCCESS (executionId=" + response.getExecutionId() + ")");
         } else {
             System.out.println("✗ FAILED (executionId=" + response.getExecutionId() + ")");
         }
-        
+
         System.out.println("\nStates: " + response.getCompletedStates());
         System.out.println("Patches: " + response.getPatches().size());
         System.out.println();
     }
-    
+
     private void printUsage() {
         System.out.println("Usage:");
         System.out.println("  agent run \"<task description>\"");

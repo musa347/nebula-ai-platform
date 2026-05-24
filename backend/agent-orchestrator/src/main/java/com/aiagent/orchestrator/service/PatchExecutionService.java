@@ -19,86 +19,84 @@ import java.util.*;
 public class PatchExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(PatchExecutionService.class);
-    
+
     @Value("${mcp.server.url:http://localhost:8081}")
     private String mcpServerUrl;
-    
+
     @Autowired
     private BackupService backupService;
-    
+
     @Autowired
     private PatchSafetyService patchSafetyService;
-    
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     public List<PatchExecutionResult> executePatches(List<PatchProposal> patches) {
+        return executePatches(patches, null);
+    }
+
+    public List<PatchExecutionResult> executePatches(List<PatchProposal> patches, String workspacePath) {
         List<PatchExecutionResult> results = new ArrayList<>();
-        
+
         if (patches == null || patches.isEmpty()) {
             return results;
         }
 
         for (PatchProposal patch : patches) {
             try {
-                PatchExecutionResult result = executePatch(patch);
+                PatchExecutionResult result = executePatch(patch, workspacePath);
                 results.add(result);
             } catch (Exception e) {
                 log.warn("Failed to execute patch for file: {}", patch.getFile(), e);
-                // Continue execution - don't fail entire run on single patch failure
                 results.add(new PatchExecutionResult(
-                    patch.getFile(), 
-                    false, 
-                    "Patch execution failed: " + e.getMessage()
+                        patch.getFile(),
+                        false,
+                        "Patch execution failed: " + e.getMessage()
                 ));
             }
         }
-        
-        log.info("Executed {} patches with {} successes", 
-                patches.size(), 
+
+        log.info("Executed {} patches with {} successes",
+                patches.size(),
                 results.stream().mapToInt(r -> r.isSuccess() ? 1 : 0).sum());
-        
+
         return results;
     }
 
-    private PatchExecutionResult executePatch(PatchProposal patch) {
+    private PatchExecutionResult executePatch(PatchProposal patch, String workspacePath) {
         FileBackup backup = null;
-        
+
         try {
-            // STEP 1: Validate patch safety
             PatchSafetyService.SafetyResult safetyResult = patchSafetyService.validate(
-                patch.getFile(), 
-                patch.getDescription() // Using description as patch content for validation
+                    patch.getFile(),
+                    patch.getDescription()
             );
-            
+
             if (!safetyResult.isSafe()) {
                 PatchExecutionResult result = new PatchExecutionResult(
-                    patch.getFile(), 
-                    false, 
-                    "Unsafe patch blocked: " + safetyResult.getReason()
+                        patch.getFile(),
+                        false,
+                        "Unsafe patch blocked: " + safetyResult.getReason()
                 );
                 return result;
             }
-            
-            // STEP 2: Create backup
+
             backup = backupService.createBackup(patch.getFile());
-            
-            // STEP 3: Apply patch
-            PatchExecutionResult result = simulatePatchExecution(patch);
+
+            PatchExecutionResult result = simulatePatchExecution(patch, workspacePath);
             result.setBackupPath(backup.getBackupPath());
-            
-            // STEP 4: If failure, restore backup
+
             if (!result.isSuccess()) {
                 backupService.restoreBackup(backup);
                 result.setReverted(true);
                 result.setMessage(result.getMessage() + " (reverted from backup)");
             }
-            
+
             return result;
-            
+
         } catch (Exception e) {
             log.warn("Failed to execute patch for file: {}", patch.getFile(), e);
-            
-            // Restore backup if it was created
+
             if (backup != null) {
                 try {
                     backupService.restoreBackup(backup);
@@ -106,11 +104,11 @@ public class PatchExecutionService {
                     log.error("Failed to restore backup: {}", backup.getBackupPath(), restoreError);
                 }
             }
-            
+
             PatchExecutionResult result = new PatchExecutionResult(
-                patch.getFile(), 
-                false, 
-                "Patch execution error: " + e.getMessage()
+                    patch.getFile(),
+                    false,
+                    "Patch execution error: " + e.getMessage()
             );
             result.setReverted(backup != null);
             if (backup != null) {
@@ -120,41 +118,54 @@ public class PatchExecutionService {
         }
     }
 
-    private PatchExecutionResult simulatePatchExecution(PatchProposal patch) {
-        // Simulate patch execution with deterministic results based on file type
+    private PatchExecutionResult simulatePatchExecution(PatchProposal patch, String workspacePath) {
         String file = patch.getFile();
-        
-        // Simulate some patches failing for testing
-        if (file.contains("NonExistent") || file.contains("ReadOnly")) {
-            return new PatchExecutionResult(
-                file, 
-                false, 
-                "File not found or read-only"
-            );
+        String suggestedChange = patch.getSuggestedChange();
+
+        if (suggestedChange == null || suggestedChange.trim().isEmpty()) {
+            return new PatchExecutionResult(file, false, "Empty patch content");
         }
-        
-        // Most patches succeed in simulation
-        if (file.endsWith(".java")) {
-            return new PatchExecutionResult(
-                file, 
-                true, 
-                "Successfully applied " + patch.getDescription().toLowerCase()
-            );
+
+        String trimmed = suggestedChange.trim();
+        if (trimmed.startsWith("//") || trimmed.startsWith("/*")) {
+            return new PatchExecutionResult(file, false, "Invalid patch: contains only comments, not modified code");
         }
-        
-        if (file.endsWith(".xml") || file.endsWith(".config")) {
-            return new PatchExecutionResult(
-                file, 
-                true, 
-                "Configuration updated: " + patch.getDescription()
-            );
+
+        String absolutePath = file;
+        if (workspacePath != null && !file.startsWith("/")) {
+            absolutePath = workspacePath + "/" + file;
+            log.info("Converted relative path '{}' to absolute: '{}'", file, absolutePath);
         }
-        
-        // Default success
-        return new PatchExecutionResult(
-            file, 
-            true, 
-            "Patch applied successfully"
-        );
+
+        try {
+            String endpoint = mcpServerUrl + "/api/tools/execute";
+
+            Map<String, Object> request = new HashMap<>();
+            request.put("toolName", "filesystem.write");
+            request.put("toolType", "FILESYSTEM_WRITE");
+
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("path", absolutePath);
+            parameters.put("content", suggestedChange);
+            request.put("parameters", parameters);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+
+            log.info("Writing file via MCP: {}", absolutePath);
+            Map<String, Object> response = restTemplate.postForObject(endpoint, entity, Map.class);
+
+            if (response != null && "SUCCESS".equals(response.get("status"))) {
+                return new PatchExecutionResult(file, true, "Successfully applied " + patch.getDescription());
+            } else {
+                String error = response != null ? String.valueOf(response.get("errorMessage")) : "Unknown error";
+                return new PatchExecutionResult(file, false, "MCP write failed: " + error);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to write file via MCP: {}", absolutePath, e);
+            return new PatchExecutionResult(file, false, "Write error: " + e.getMessage());
+        }
     }
 }

@@ -65,7 +65,7 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Spring AI -->
+        <!-- Spring AI - Multiple Providers -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-ollama</artifactId>
@@ -74,6 +74,11 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>
+            <version>1.0.0-M2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
             <version>1.0.0-M2</version>
         </dependency>
 

@@ -17,89 +17,90 @@ import java.util.*;
 public class FileReaderService {
 
     private static final Logger log = LoggerFactory.getLogger(FileReaderService.class);
-    private static final int PREVIEW_LINES = 15; // First 15 lines only
-    
+    private static final int PREVIEW_LINES = 15;
+
     @Value("${mcp.server.url:http://localhost:8081}")
     private String mcpServerUrl;
-    
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     public List<FilePreview> readFilePreviews(List<LoadedContext> contexts) {
+        return readFilePreviews(contexts, null);
+    }
+
+    public List<FilePreview> readFilePreviews(List<LoadedContext> contexts, String workspacePath) {
         List<FilePreview> previews = new ArrayList<>();
-        
+
         if (contexts == null || contexts.isEmpty()) {
+            log.warn("No contexts provided to readFilePreviews");
             return previews;
         }
 
+        log.info("Reading {} file previews with workspace path: {}", contexts.size(), workspacePath);
+
         for (LoadedContext context : contexts) {
             try {
-                String preview = readFilePreview(context.getFile());
+                String filePath = context.getFile();
+                log.info("Processing file: {} (relative: {})", filePath, !filePath.startsWith("/"));
+
+                if (workspacePath != null && !filePath.startsWith("/")) {
+                    filePath = workspacePath + "/" + filePath;
+                    log.info("Converted to absolute path: {}", filePath);
+                }
+
+                String preview = readFilePreview(filePath);
                 if (preview != null) {
                     previews.add(new FilePreview(context.getFile(), preview));
+                    log.info("Successfully read file preview for: {}", context.getFile());
+                } else {
+                    log.warn("Failed to read preview for: {}", filePath);
                 }
             } catch (Exception e) {
                 log.warn("Failed to read file preview for: {}", context.getFile(), e);
-                // Continue execution - don't fail on individual file read errors
             }
         }
-        
+
         log.info("Generated {} file previews from {} contexts", previews.size(), contexts.size());
         return previews;
     }
 
     private String readFilePreview(String filePath) {
         try {
-            // For now, create mock file content since we don't have actual files
-            // In real implementation, this would call MCP server filesystem.read endpoint
-            return createMockFilePreview(filePath);
-            
+            String url = mcpServerUrl + "/api/tools/execute";
+
+            Map<String, Object> request = new HashMap<>();
+            request.put("toolName", "filesystem.read");
+            request.put("toolType", "FILESYSTEM_READ");
+            request.put("parameters", Map.of("path", filePath));
+
+            log.info("Calling MCP server: {} with path: {}", url, filePath);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+
+            log.info("MCP server response: {}", response);
+
+            if (response != null && "SUCCESS".equals(response.get("status"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> result = (Map<String, Object>) response.get("result");
+                if (result != null) {
+                    String content = (String) result.get("content");
+                    log.info("Successfully read file, content length: {}", content != null ? content.length() : 0);
+                    return content;
+                }
+            }
+
+            log.warn("Failed to read file from MCP server: {}, response: {}", filePath, response);
+            return null;
+
         } catch (Exception e) {
-            log.warn("Failed to read file: {}", filePath, e);
+            log.error("Exception reading file: {}", filePath, e);
             return null;
         }
     }
 
-    private String createMockFilePreview(String filePath) {
-        // Create realistic mock content based on file type
-        if (filePath.endsWith(".java")) {
-            String className = extractClassName(filePath);
-            return String.format(
-                "package com.example.service;\n\n" +
-                "import org.springframework.stereotype.Service;\n" +
-                "import java.util.List;\n\n" +
-                "@Service\n" +
-                "public class %s {\n" +
-                "    \n" +
-                "    public void processRequest() {\n" +
-                "        // Implementation here\n" +
-                "    }\n" +
-                "    \n" +
-                "    // Additional methods...\n" +
-                "}\n",
-                className
-            );
-        }
-        
-        if (filePath.endsWith(".xml") || filePath.endsWith(".config")) {
-            return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                   "<configuration>\n" +
-                   "    <settings>\n" +
-                   "        <property name=\"example\">value</property>\n" +
-                   "    </settings>\n" +
-                   "</configuration>\n";
-        }
-        
-        // Default preview
-        return "# " + filePath + "\n" +
-               "\n" +
-               "This is a preview of the file content.\n" +
-               "Only the first " + PREVIEW_LINES + " lines are shown.\n" +
-               "\n" +
-               "[Content truncated for brevity]\n";
-    }
-
-    private String extractClassName(String filePath) {
-        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
-        return fileName.replace(".java", "");
-    }
 }

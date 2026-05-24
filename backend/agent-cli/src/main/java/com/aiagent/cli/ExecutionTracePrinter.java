@@ -9,44 +9,92 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ExecutionTracePrinter {
-    
+
     public void print(OrchestratorTaskResponse response) {
+        if (response.getAnalysisResult() != null) {
+            printAnalysisResult(response);
+        } else {
+            printModificationResult(response);
+        }
+    }
+
+    private void printAnalysisResult(OrchestratorTaskResponse response) {
+        System.out.println("\n[ANALYSIS RESULT]\n");
+
+        String analysisText = response.getAnalysisResult();
+        if (analysisText == null || analysisText.trim().isEmpty()) {
+            System.out.println("No analysis generated.");
+            return;
+        }
+
+        String[] lines = analysisText.split("\n");
+        for (String line : lines) {
+            if (line.startsWith("FILES_ANALYZED:")) {
+                System.out.println("Files Analyzed:");
+                String files = line.substring("FILES_ANALYZED:".length()).trim();
+                if (!files.isEmpty()) {
+                    for (String file : files.split(", ")) {
+                        System.out.println("   - " + file);
+                    }
+                }
+                System.out.println();
+            } else if (line.startsWith("KEY_FINDINGS:")) {
+                System.out.println("Key Findings:");
+                String findings = line.substring("KEY_FINDINGS:".length()).trim();
+                if (!findings.isEmpty()) {
+                    for (String finding : findings.split(", ")) {
+                        System.out.println("   • " + finding);
+                    }
+                }
+                System.out.println();
+            } else if (line.startsWith("EXPLANATION:")) {
+                System.out.println("Detailed Explanation:\n");
+                String explanation = line.substring("EXPLANATION:".length()).trim();
+                System.out.println(explanation);
+                System.out.println();
+            } else if (!line.trim().isEmpty()) {
+                System.out.println(line);
+            }
+        }
+    }
+
+    private void printModificationResult(OrchestratorTaskResponse response) {
         printPlan(response);
         printToolSelection(response);
         printContexts(response);
         printExecution(response);
         printPatches(response);
     }
-    
+
     private void printPlan(OrchestratorTaskResponse response) {
         System.out.println("[PLAN]");
-        
+
         if (response.getCompletedStates().contains(ExecutionState.PLANNING)) {
-            System.out.println("✓ Planning completed");
-            System.out.println("  States to execute: " + response.getCompletedStates().size());
+            System.out.println("Planning completed");
+            System.out.println("States to execute: " + response.getCompletedStates().size());
         } else {
-            System.out.println("✗ Planning not completed");
+            System.out.println("Planning not completed");
         }
-        
+
         System.out.println();
     }
-    
+
     private void printToolSelection(OrchestratorTaskResponse response) {
         System.out.println("[TOOL SELECTION]");
-        
+
         for (ExecutionState state : response.getCompletedStates()) {
             String tool = mapStateToTool(state);
             if (tool != null) {
                 System.out.println("  " + state + " → " + tool);
             }
         }
-        
+
         System.out.println();
     }
-    
+
     private void printContexts(OrchestratorTaskResponse response) {
         System.out.println("[MEMORY MATCHES]");
-        
+
         if (response.getContexts() != null && !response.getContexts().isEmpty()) {
             System.out.println("  Loaded " + response.getContexts().size() + " contexts:");
             for (LoadedContext context : response.getContexts()) {
@@ -55,13 +103,13 @@ public class ExecutionTracePrinter {
         } else {
             System.out.println("  No contexts loaded");
         }
-        
+
         System.out.println();
     }
-    
+
     private void printExecution(OrchestratorTaskResponse response) {
         System.out.println("[EXECUTION STEPS]");
-        
+
         if (response.getPreviews() != null && !response.getPreviews().isEmpty()) {
             System.out.println("  Read " + response.getPreviews().size() + " files:");
             for (FilePreview preview : response.getPreviews()) {
@@ -71,13 +119,13 @@ public class ExecutionTracePrinter {
         } else {
             System.out.println("  No files read");
         }
-        
+
         System.out.println();
     }
-    
+
     private void printPatches(OrchestratorTaskResponse response) {
         System.out.println("[PATCHES]");
-        
+
         if (response.getPatches() != null && !response.getPatches().isEmpty()) {
             System.out.println("  Generated " + response.getPatches().size() + " patches:");
             for (PatchProposal patch : response.getPatches()) {
@@ -87,10 +135,10 @@ public class ExecutionTracePrinter {
         } else {
             System.out.println("  No patches generated");
         }
-        
+
         System.out.println();
     }
-    
+
     private String mapStateToTool(ExecutionState state) {
         switch (state) {
             case PLANNING:

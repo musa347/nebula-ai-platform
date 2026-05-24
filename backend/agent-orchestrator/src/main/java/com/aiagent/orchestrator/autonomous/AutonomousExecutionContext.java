@@ -2,8 +2,10 @@ package com.aiagent.orchestrator.autonomous;
 
 import com.aiagent.common.enums.ExecutionState;
 import com.aiagent.common.model.ExecutionPlan;
+import com.aiagent.common.model.PatchProposal;
 import com.aiagent.common.model.ToolDecision;
 import com.aiagent.orchestrator.adaptive.ExecutionRisk;
+import com.aiagent.orchestrator.escalation.TaskComplexity;
 import com.aiagent.orchestrator.learning.LearningSignal;
 import com.aiagent.orchestrator.memory.SemanticMemoryEntry;
 
@@ -19,72 +21,116 @@ public class AutonomousExecutionContext {
     private List<SemanticMemoryEntry> memories;
     private ExecutionRisk risk;
     private ToolDecision lastToolDecision;
-    
+    private TaskComplexity complexity;
+    private String workspacePath;
+    private List<String> availableFiles;
+    private List<PatchProposal> generatedPatches;
+
     public AutonomousExecutionContext(String executionId, String task) {
         this.executionId = executionId;
         this.task = task;
         this.currentState = ExecutionState.CREATED;
         this.signals = new ArrayList<>();
         this.memories = new ArrayList<>();
+        this.availableFiles = new ArrayList<>();
+        this.generatedPatches = new ArrayList<>();
     }
-    
+
     public String getExecutionId() {
         return executionId;
     }
-    
+
     public String getTask() {
         return task;
     }
-    
+
     public ExecutionState getCurrentState() {
         return currentState;
     }
-    
+
     public void setCurrentState(ExecutionState currentState) {
         this.currentState = currentState;
     }
-    
+
     public ExecutionPlan getPlan() {
         return plan;
     }
-    
+
     public void setPlan(ExecutionPlan plan) {
         this.plan = plan;
     }
-    
+
     public List<LearningSignal> getSignals() {
         return signals;
     }
-    
+
     public void addSignal(LearningSignal signal) {
         if (signal != null) {
             this.signals.add(signal);
         }
     }
-    
+
     public List<SemanticMemoryEntry> getMemories() {
         return memories;
     }
-    
+
     public void addMemory(SemanticMemoryEntry memory) {
         if (memory != null) {
             this.memories.add(memory);
         }
     }
-    
+
     public ExecutionRisk getRisk() {
         return risk;
     }
-    
+
     public void setRisk(ExecutionRisk risk) {
         this.risk = risk;
     }
-    
+
     public ToolDecision getLastToolDecision() {
         return lastToolDecision;
     }
-    
+
     public void setLastToolDecision(ToolDecision lastToolDecision) {
         this.lastToolDecision = lastToolDecision;
+    }
+
+    public TaskComplexity getComplexity() {
+        return complexity;
+    }
+
+    public void setComplexity(TaskComplexity complexity) {
+        this.complexity = complexity;
+    }
+
+    public String getWorkspacePath() {
+        return workspacePath;
+    }
+
+    public void setWorkspacePath(String workspacePath) {
+        this.workspacePath = workspacePath;
+    }
+
+    public List<String> getAvailableFiles() {
+        return availableFiles;
+    }
+
+    public void setAvailableFiles(List<String> availableFiles) {
+        this.availableFiles = availableFiles;
+    }
+
+    public List<PatchProposal> getGeneratedPatches() {
+        return generatedPatches;
+    }
+
+    public void setGeneratedPatches(List<PatchProposal> generatedPatches) {
+        this.generatedPatches = generatedPatches != null ? generatedPatches : new ArrayList<>();
+    }
+
+    public void addGeneratedPatches(List<PatchProposal> patches) {
+        if (patches != null) {
+            this.generatedPatches.addAll(patches);
+        }
     }
 }
