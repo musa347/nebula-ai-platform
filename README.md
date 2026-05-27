@@ -16,6 +16,7 @@ ai-agent-platform/
 │   ├── common/                    # Shared DTOs, models, utilities
 │   ├── mcp-server/               # Tool execution runtime
 │   └── agent-orchestrator/       # AI reasoning engine
+|   |__ agent-cli/                 # cli agent for querying 
 ├── plugins/
 │   └── intellij-plugin/          # IntelliJ IDEA client
 ├── infrastructure/               # Docker, monitoring, nginx
@@ -25,7 +26,7 @@ ai-agent-platform/
 ### Module Dependencies
 
 ```
-intellij-plugin
+agent-cli
     ↓
 agent-orchestrator
     ↓
@@ -55,7 +56,7 @@ mvn clean install
 mvn -pl backend/common clean install
 mvn -pl backend/mcp-server clean install
 mvn -pl backend/agent-orchestrator clean install
-```
+``` -pl backend/agent-cli clean install 
 
 ### Running the Services
 
@@ -71,11 +72,10 @@ cd backend/agent-orchestrator
 mvn spring-boot:run
 ```
 
-#### 3. IntelliJ Plugin
+#### 3. agent-cli
 ```bash
-cd plugins/intellij-plugin
-./gradlew buildPlugin
-# Install in IntelliJ IDEA from Settings → Plugins → Install Plugin from Disk
+cd backend/agent-cli
+run the agent-cli jar + the working repository path 
 ```
 
 ## Module Details
