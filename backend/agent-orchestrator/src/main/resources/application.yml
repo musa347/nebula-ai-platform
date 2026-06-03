@@ -2,6 +2,28 @@ server:
   port: 8082
 
 ai:
+  # Provider configuration
+  provider:
+    primary: ollama  # Options: gemini, groq, ollama
+  
+  # Gemini configuration (Google AI Studio)
+  gemini:
+    enabled: true
+    api-key: ${GEMINI_API_KEY}
+    model: gemini-2.5-flash
+  
+  # Groq configuration (Groq Cloud)
+  groq:
+    enabled: true
+    api-key: ${GROQ_API_KEY}
+    model: llama-3.3-70b-versatile
+  
+  # Ollama configuration (Local fallback)
+  ollama:
+    enabled: true
+    model: qwen2.5-coder:1.5b
+  
+  # Feature flags
   planning:
     enabled: true
   patch:
@@ -15,6 +37,10 @@ spring:
   
   main:
     allow-bean-definition-overriding: true
+  
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
   
   webflux:
     base-path: /api/v1
@@ -34,7 +60,10 @@ spring:
     ollama:
       base-url: http://localhost:11434
       chat:
-        model: qwen2.5-coder:1.5b
+        options:
+          model: qwen2.5-coder:1.5b
+          temperature: 0.1
+          num-predict: 2048
       embedding:
         model: nomic-embed-text
 

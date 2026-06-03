@@ -4,6 +4,46 @@ spring:
   main:
     banner-mode: off
     web-application-type: none
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: qwen2.5-coder:7b
+        options:
+          temperature: 0.1
+          num-predict: 2048
+
+ai:
+  # Provider configuration
+  provider:
+    primary: gemini  # Options: gemini, groq, ollama
+  
+  # Gemini configuration (Google AI Studio)
+  gemini:
+    enabled: true
+    api-key: ${GEMINI_API_KEY}
+    model: gemini-2.5-flash
+  
+  # Groq configuration (Groq Cloud)
+  groq:
+    enabled: true
+    api-key: ${GROQ_API_KEY}
+    model: llama-3.3-70b-versatile
+  
+  # Ollama configuration (Local fallback)
+  ollama:
+    enabled: true
+    model: qwen2.5-coder:7b
+  
+  planning:
+    enabled: true
+  patch:
+    enabled: true
+  failure-analysis:
+    enabled: true
 
 logging:
   level:

@@ -14,6 +14,7 @@ public class OrchestratorTaskResponse {
     private List<FilePreview> previews;
     private List<PatchProposal> patches;
     private List<PatchExecutionResult> patchResults;
+    private String analysisResult;
 
     public OrchestratorTaskResponse() {}
 
@@ -98,5 +99,13 @@ public class OrchestratorTaskResponse {
 
     public void setPatchResults(List<PatchExecutionResult> patchResults) {
         this.patchResults = patchResults;
+    }
+
+    public String getAnalysisResult() {
+        return analysisResult;
+    }
+
+    public void setAnalysisResult(String analysisResult) {
+        this.analysisResult = analysisResult;
     }
 }

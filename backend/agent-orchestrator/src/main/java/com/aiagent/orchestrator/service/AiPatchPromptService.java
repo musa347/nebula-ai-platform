@@ -11,39 +11,35 @@ import org.springframework.stereotype.Service;
 public class AiPatchPromptService {
 
     private static final String PATCH_PROMPT_TEMPLATE = """
-            You are a precise code modification assistant.
+            You are a code modification assistant. Your task is to generate a MINIMAL PATCH for the provided code.
             
-            TASK:
+            TASK: %s
+            FILE: %s
+            
+            CURRENT CODE:
+            ```
             %s
+            ```
             
-            FILE:
-            %s
+            CONTEXT: %s
             
-            FILE CONTENT:
-            %s
+            CRITICAL INSTRUCTIONS:
+            1. Generate ONLY the minimal code changes needed (patch/diff style)
+            2. Include ONLY the lines that need to be added or modified
+            3. DO NOT return the entire file - only the changed sections
+            4. For adding comments: return just the comment lines to be inserted
+            5. For modifying methods: return just the modified method
+            6. Keep changes as small and targeted as possible
             
-            RELATED CONTEXT:
-            %s
+            EXAMPLE for "add comment at top":
+            {"file":"Example.java","description":"Added class documentation","suggestedChange":"/**\n * This class handles example operations.\n */"}
             
-            RULES:
-            - Do NOT introduce new features outside scope
-            - Do NOT remove safety checks
-            - Do NOT delete unrelated code
-            - Return ONLY valid JSON:
-            {
-              "file": "...",
-              "description": "...",
-              "suggestedChange": "..."
-            }
+            RESPOND WITH ONLY THIS JSON (no other text):
+            {"file":"%s","description":"brief description of changes","suggestedChange":"MINIMAL PATCH CODE HERE"}
+            
+            JSON:
             """;
 
-    /**
-     * Builds a structured prompt for AI patch generation.
-     *
-     * @param request The patch request containing task, file, context, and preview
-     * @return Formatted prompt string ready for AI processing
-     * @throws IllegalArgumentException if request or required fields are null/empty
-     */
     public String buildPatchPrompt(AiPatchRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("AiPatchRequest cannot be null");
@@ -55,44 +51,24 @@ public class AiPatchPromptService {
         String context = validateAndDefault(request.getContext(), "No additional context");
 
         return String.format(
-            PATCH_PROMPT_TEMPLATE,
-            task,
-            file,
-            filePreview,
-            context
+                PATCH_PROMPT_TEMPLATE,
+                task,
+                file,
+                filePreview,
+                context,
+                file
         );
     }
 
-    /**
-     * Builds a structured prompt with individual parameters.
-     *
-     * @param task The task description
-     * @param file The target file name
-     * @param filePreview The current file content
-     * @param context Additional context information
-     * @return Formatted prompt string ready for AI processing
-     */
     public String buildPatchPrompt(String task, String file, String filePreview, String context) {
         AiPatchRequest request = new AiPatchRequest(task, file, context, filePreview);
         return buildPatchPrompt(request);
     }
 
-    /**
-     * Validates input and provides default value if null or empty.
-     *
-     * @param value The value to validate
-     * @param defaultValue The default value to use if validation fails
-     * @return The original value if valid, otherwise the default value
-     */
     private String validateAndDefault(String value, String defaultValue) {
         return (value != null && !value.trim().isEmpty()) ? value : defaultValue;
     }
 
-    /**
-     * Gets the raw prompt template for testing or customization.
-     *
-     * @return The prompt template string
-     */
     public String getPromptTemplate() {
         return PATCH_PROMPT_TEMPLATE;
     }
